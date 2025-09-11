@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title><%= title %></title>
+	<link rel="stylesheet" href="/public/styles.css" />
+</head>
+<body>
+	<header>
+		<h1>Panel Admin</h1>
+		<nav>
+			<form action="/admin/logout" method="post" style="display:inline;">
+				<button type="submit">Salir (<%= user.username %>)</button>
+			</form>
+		</nav>
+	</header>
+	<main>
+		<form method="get" class="filters">
+			<select name="status">
+				<option value="">Estado</option>
+				<% ['Pendiente','En Proceso','Resuelto','Cerrado'].forEach(s=>{ %>
+					<option value="<%= s %>" <%= (filters.status||'')===s ? 'selected' : '' %>><%= s %></option>
+				<% }) %>
+			</select>
+			<select name="priority">
+				<option value="">Prioridad</option>
+				<% ['Baja – No es urgente','Media – Puede esperar unas horas','Alta – Necesito ayuda pronto','Crítica – Bloquea mi trabajo'].forEach(p=>{ %>
+					<option value="<%= p %>" <%= (filters.priority||'')===p ? 'selected' : '' %>><%= p %></option>
+				<% }) %>
+			</select>
+			<select name="support_type">
+				<option value="">Tipo de Soporte</option>
+				<% ['Hardware','Software','Red e Internet','Acceso y Permisos','Correo Electrónico','Otro'].forEach(t=>{ %>
+					<option value="<%= t %>" <%= (filters.support_type||'')===t ? 'selected' : '' %>><%= t %></option>
+				<% }) %>
+			</select>
+			<button type="submit">Filtrar</button>
+		</form>
+
+		<table class="table">
+			<thead>
+				<tr>
+					<th>Referencia</th>
+					<th>Solicitante</th>
+					<th>Tipo</th>
+					<th>Prioridad</th>
+					<th>Estado</th>
+					<th>Creado</th>
+				</tr>
+			</thead>
+			<tbody>
+				<% tickets.forEach(t => { %>
+					<tr>
+						<td><a href="/admin/tickets/<%= t.reference %>"><%= t.reference %></a></td>
+						<td><%= t.requester_name %></td>
+						<td><%= t.support_type %></td>
+						<td><%= t.priority %></td>
+						<td><%= t.status %></td>
+						<td><%= new Date(t.created_at).toLocaleString() %></td>
+					</tr>
+				<% }) %>
+			</tbody>
+		</table>
+	</main>
+</body>
+</html>
