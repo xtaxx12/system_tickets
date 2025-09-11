@@ -4,29 +4,31 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title><%= title %></title>
-	<link rel="stylesheet" href="/public/styles.css" />
+	<script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-	<header>
-		<h1>Acceso Administrador</h1>
-		<nav>
-			<a href="/">Nuevo Ticket</a>
-			<a href="/tickets">Listado</a>
-		</nav>
+<body class="bg-slate-50 text-slate-900">
+	<header class="bg-slate-900 text-white">
+		<div class="max-w-xl mx-auto px-4 py-4 flex items-center justify-between">
+			<h1 class="text-lg font-semibold">Acceso Administrador</h1>
+			<nav class="space-x-4 text-sm">
+				<a class="text-sky-200 hover:text-white" href="/">Nuevo Ticket</a>
+				<a class="text-sky-200 hover:text-white" href="/tickets">Listado</a>
+			</nav>
+		</div>
 	</header>
-	<main>
-		<form action="/admin/login" method="post" class="form">
-			<div class="field">
-				<label>Usuario</label>
-				<input type="text" name="username" required />
+	<main class="max-w-xl mx-auto px-4 py-8">
+		<form action="/admin/login" method="post" class="bg-white shadow rounded-lg p-6 space-y-4">
+			<div>
+				<label class="block text-sm font-medium mb-1">Usuario</label>
+				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="text" name="username" required />
 			</div>
-			<div class="field">
-				<label>Contraseña</label>
-				<input type="password" name="password" required />
+			<div>
+				<label class="block text-sm font-medium mb-1">Contraseña</label>
+				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="password" name="password" required />
 			</div>
-			<% if (error) { %><p class="error"><%= error %></p><% } %>
-			<div class="actions">
-				<button type="submit">Entrar</button>
+			<% if (error) { %><p class="text-sm text-red-600"><%= error %></p><% } %>
+			<div class="pt-2">
+				<button class="rounded-md bg-sky-600 px-4 py-2 text-white hover:bg-sky-700" type="submit">Entrar</button>
 			</div>
 		</form>
 	</main>

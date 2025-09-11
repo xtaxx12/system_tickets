@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { getDb } = require('../db');
+const { getPool } = require('../db');
 
 const SUPPORT_TYPES = [
 	'Hardware',
@@ -28,17 +28,18 @@ function generateReference() {
 	return `T-${y}${m}${d}-${base}`;
 }
 
-function createTicket(data) {
-	const db = getDb();
+async function createTicket(data) {
+	const pool = getPool();
 	const reference = generateReference();
 	const editToken = uuidv4();
-	const stmt = db.prepare(`
+	const q = `
 		INSERT INTO tickets (
 			reference, requester_name, department, support_type, priority, subject, description,
 			image_path, has_anydesk, anydesk_code, status, edit_token
-		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-	`);
-	const info = stmt.run(
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		RETURNING *
+	`;
+	const values = [
 		reference,
 		data.requester_name,
 		data.department,
@@ -47,72 +48,76 @@ function createTicket(data) {
 		data.subject,
 		data.description,
 		data.image_path || null,
-		data.has_anydesk ? 1 : 0,
+		!!data.has_anydesk,
 		data.anydesk_code || null,
 		'Pendiente',
-		editToken
-	);
-	return findById(info.lastInsertRowid);
+		editToken,
+	];
+	const { rows } = await pool.query(q, values);
+	return rows[0];
 }
 
-function updateTicketByToken(editToken, updates) {
-	const db = getDb();
+async function updateTicketByToken(editToken, updates) {
+	const pool = getPool();
 	const fields = [];
 	const params = [];
+	let idx = 1;
 	for (const [key, value] of Object.entries(updates)) {
-		fields.push(`${key} = ?`);
+		fields.push(`${key} = $${idx++}`);
 		params.push(value);
 	}
 	if (fields.length === 0) return findByEditToken(editToken);
 	params.push(editToken);
-	const sql = `UPDATE tickets SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE edit_token = ?`;
-	const info = db.prepare(sql).run(...params);
-	if (info.changes === 0) return null;
-	return findByEditToken(editToken);
+	const sql = `UPDATE tickets SET ${fields.join(', ')}, updated_at = NOW() WHERE edit_token = $${idx} RETURNING *`;
+	const { rows } = await pool.query(sql, params);
+	return rows[0] || null;
 }
 
-function updateStatusById(id, status) {
-	const db = getDb();
-	if (!STATUSES.includes(status)) {
-		throw new Error('Estado inválido');
-	}
-	const info = db
-		.prepare('UPDATE tickets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-		.run(status, id);
-	return info.changes > 0 ? findById(id) : null;
+async function updateStatusById(id, status) {
+	if (!STATUSES.includes(status)) throw new Error('Estado inválido');
+	const pool = getPool();
+	const { rows } = await pool.query(
+		'UPDATE tickets SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+		[status, id]
+	);
+	return rows[0] || null;
 }
 
-function findById(id) {
-	return getDb().prepare('SELECT * FROM tickets WHERE id = ?').get(id);
+async function findById(id) {
+	const { rows } = await getPool().query('SELECT * FROM tickets WHERE id = $1', [id]);
+	return rows[0] || null;
 }
 
-function findByReference(reference) {
-	return getDb().prepare('SELECT * FROM tickets WHERE reference = ?').get(reference);
+async function findByReference(reference) {
+	const { rows } = await getPool().query('SELECT * FROM tickets WHERE reference = $1', [reference]);
+	return rows[0] || null;
 }
 
-function findByEditToken(editToken) {
-	return getDb().prepare('SELECT * FROM tickets WHERE edit_token = ?').get(editToken);
+async function findByEditToken(editToken) {
+	const { rows } = await getPool().query('SELECT * FROM tickets WHERE edit_token = $1', [editToken]);
+	return rows[0] || null;
 }
 
-function listTickets(filters = {}, limit = 100, offset = 0) {
+async function listTickets(filters = {}, limit = 100, offset = 0) {
 	const where = [];
 	const params = [];
+	let idx = 1;
 	if (filters.status) {
-		where.push('status = ?');
+		where.push(`status = $${idx++}`);
 		params.push(filters.status);
 	}
 	if (filters.priority) {
-		where.push('priority = ?');
+		where.push(`priority = $${idx++}`);
 		params.push(filters.priority);
 	}
 	if (filters.support_type) {
-		where.push('support_type = ?');
+		where.push(`support_type = $${idx++}`);
 		params.push(filters.support_type);
 	}
 	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-	const sql = `SELECT * FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
 	params.push(limit, offset);
-	const rows = getDb().prepare(sql).all(...params);
+	const sql = `SELECT * FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx}`;
+	const { rows } = await getPool().query(sql, params);
 	return rows;
 }
 

@@ -1,63 +1,76 @@
-const path = require('path');
-const fs = require('fs');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-let dbInstance;
+let pool;
 
-function getDb() {
-	if (!dbInstance) {
-		const dataDir = path.join(__dirname, '..', 'data');
-		if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-		const dbPath = path.join(dataDir, 'tickets.db');
-		dbInstance = new Database(dbPath);
+function getPool() {
+	if (!pool) {
+		pool = new Pool({
+			host: process.env.PGHOST || 'localhost',
+			port: Number(process.env.PGPORT || 5432),
+			user: process.env.PGUSER || 'postgres',
+			password: process.env.PGPASSWORD || 'admin123',
+			database: process.env.PGDATABASE || 'tickets',
+			ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : undefined,
+		});
 	}
-	return dbInstance;
+	return pool;
 }
 
-function ensureDatabaseInitialized() {
-	const db = getDb();
-	// Crear tablas si no existen
-	db.exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			username TEXT UNIQUE NOT NULL,
-			password_hash TEXT NOT NULL,
-			role TEXT NOT NULL CHECK(role IN ('admin','user'))
-		);
+async function ensureDatabaseInitialized() {
+	const client = await getPool().connect();
+	try {
+		await client.query('BEGIN');
+		await client.query(`
+			CREATE TABLE IF NOT EXISTS users (
+				id SERIAL PRIMARY KEY,
+				username TEXT UNIQUE NOT NULL,
+				password_hash TEXT NOT NULL,
+				role TEXT NOT NULL CHECK (role IN ('admin','user'))
+			);
+		`);
+		await client.query(`
+			CREATE TABLE IF NOT EXISTS tickets (
+				id SERIAL PRIMARY KEY,
+				reference TEXT UNIQUE NOT NULL,
+				requester_name TEXT NOT NULL,
+				department TEXT NOT NULL,
+				support_type TEXT NOT NULL,
+				priority TEXT NOT NULL,
+				subject TEXT NOT NULL,
+				description TEXT NOT NULL,
+				image_path TEXT,
+				has_anydesk BOOLEAN NOT NULL DEFAULT false,
+				anydesk_code TEXT,
+				status TEXT NOT NULL DEFAULT 'Pendiente',
+				edit_token TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+		`);
+		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)`);
+		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority)`);
+		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_support_type ON tickets(support_type)`);
 
-		CREATE TABLE IF NOT EXISTS tickets (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			reference TEXT UNIQUE NOT NULL,
-			requester_name TEXT NOT NULL,
-			department TEXT NOT NULL,
-			support_type TEXT NOT NULL,
-			priority TEXT NOT NULL,
-			subject TEXT NOT NULL,
-			description TEXT NOT NULL,
-			image_path TEXT,
-			has_anydesk INTEGER NOT NULL DEFAULT 0,
-			anydesk_code TEXT,
-			status TEXT NOT NULL DEFAULT 'Pendiente',
-			edit_token TEXT NOT NULL,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
-		CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority);
-		CREATE INDEX IF NOT EXISTS idx_tickets_support_type ON tickets(support_type);
-	`);
-
-	// Crear usuario admin por defecto si no existe
-	const adminUser = process.env.ADMIN_USER || 'admin';
-	const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-	const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(adminUser);
-	if (!existing) {
-		const passwordHash = bcrypt.hashSync(adminPassword, 10);
-		db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?,?,?)').run(adminUser, passwordHash, 'admin');
-		console.log('Usuario admin creado:', adminUser);
+		const adminUser = process.env.ADMIN_USER || 'admin';
+		const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+		const existing = await client.query('SELECT id FROM users WHERE username = $1', [adminUser]);
+		if (existing.rowCount === 0) {
+			const hash = bcrypt.hashSync(adminPassword, 10);
+			await client.query(
+				'INSERT INTO users (username, password_hash, role) VALUES ($1,$2,$3)',
+				[adminUser, hash, 'admin']
+			);
+			console.log('Usuario admin creado:', adminUser);
+		}
+		await client.query('COMMIT');
+	} catch (e) {
+		await client.query('ROLLBACK');
+		console.error('Error inicializando DB:', e);
+		throw e;
+	} finally {
+		client.release();
 	}
 }
 
-module.exports = { getDb, ensureDatabaseInitialized };
+module.exports = { getPool, ensureDatabaseInitialized };

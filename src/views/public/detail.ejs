@@ -4,38 +4,44 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title><%= title %></title>
-	<link rel="stylesheet" href="/public/styles.css" />
+	<script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-	<header>
-		<h1>Ticket <%= ticket.reference %></h1>
-		<nav>
-			<a href="/">Nuevo Ticket</a>
-			<a href="/tickets">Listado</a>
-			<a href="/admin/login">Admin</a>
-		</nav>
+<body class="bg-slate-50 text-slate-900">
+	<header class="bg-slate-900 text-white">
+		<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+			<h1 class="text-lg font-semibold">Ticket <%= ticket.reference %></h1>
+			<nav class="space-x-4 text-sm">
+				<a class="text-sky-200 hover:text-white" href="/">Nuevo Ticket</a>
+				<a class="text-sky-200 hover:text-white" href="/tickets">Listado</a>
+				<a class="text-sky-200 hover:text-white" href="/admin/login">Admin</a>
+			</nav>
+		</div>
 	</header>
-	<main>
-		<section class="card">
-			<p><strong>Solicitante:</strong> <%= ticket.requester_name %></p>
-			<p><strong>Departamento:</strong> <%= ticket.department %></p>
-			<p><strong>Tipo de Soporte:</strong> <%= ticket.support_type %></p>
-			<p><strong>Prioridad:</strong> <%= ticket.priority %></p>
-			<p><strong>Estado:</strong> <%= ticket.status %></p>
-			<p><strong>Asunto:</strong> <%= ticket.subject %></p>
-			<p><strong>Descripción:</strong></p>
-			<p><%= ticket.description %></p>
+	<main class="max-w-3xl mx-auto px-4 py-8">
+		<section class="bg-white shadow rounded-lg p-6 space-y-3">
+			<p><span class="font-semibold">Solicitante:</span> <%= ticket.requester_name %></p>
+			<p><span class="font-semibold">Departamento:</span> <%= ticket.department %></p>
+			<p><span class="font-semibold">Tipo de Soporte:</span> <%= ticket.support_type %></p>
+			<p><span class="font-semibold">Prioridad:</span> <%= ticket.priority %></p>
+			<p><span class="font-semibold">Estado:</span> <%= ticket.status %></p>
+			<p><span class="font-semibold">Asunto:</span> <%= ticket.subject %></p>
+			<div>
+				<p class="font-semibold mb-1">Descripción:</p>
+				<p class="whitespace-pre-line"><%= ticket.description %></p>
+			</div>
 			<% if (ticket.image_path) { %>
-				<p><strong>Imagen adjunta:</strong></p>
-				<img src="<%= ticket.image_path %>" alt="Adjunto" style="max-width: 500px;" />
+				<div>
+					<p class="font-semibold mb-1">Imagen adjunta:</p>
+					<img class="rounded-md max-w-full" src="<%= ticket.image_path %>" alt="Adjunto" />
+				</div>
 			<% } %>
-			<p><strong>AnyDesk instalado:</strong> <%= ticket.has_anydesk ? 'Sí' : 'No' %></p>
+			<p><span class="font-semibold">AnyDesk instalado:</span> <%= ticket.has_anydesk ? 'Sí' : 'No' %></p>
 			<% if (ticket.has_anydesk && ticket.anydesk_code) { %>
-				<p><strong>Código AnyDesk:</strong> <%= ticket.anydesk_code %></p>
+				<p><span class="font-semibold">Código AnyDesk:</span> <%= ticket.anydesk_code %></p>
 			<% } %>
-			<p><strong>Creado:</strong> <%= new Date(ticket.created_at).toLocaleString() %></p>
+			<p><span class="font-semibold">Creado:</span> <%= new Date(ticket.created_at).toLocaleString() %></p>
 			<p>
-				<a class="button" href="/tickets/<%= ticket.reference %>/editar?token=<%= ticket.edit_token %>">Editar este ticket</a>
+				<a class="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-white hover:bg-sky-700" href="/tickets/<%= ticket.reference %>/editar?token=<%= ticket.edit_token %>">Editar este ticket</a>
 			</p>
 		</section>
 	</main>

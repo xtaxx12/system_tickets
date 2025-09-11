@@ -80,7 +80,7 @@ router.post('/tickets', upload.single('image'), async (req, res) => {
 		}
 
 		const image_path = req.file ? '/uploads/' + req.file.filename : null;
-		const ticket = createTicket({
+		const ticket = await createTicket({
 			requester_name,
 			department,
 			support_type,
@@ -119,9 +119,9 @@ router.post('/tickets', upload.single('image'), async (req, res) => {
 	}
 });
 
-router.get('/tickets', (req, res) => {
+router.get('/tickets', async (req, res) => {
 	const { status, priority, support_type } = req.query;
-	const tickets = listTickets({ status, priority, support_type });
+	const tickets = await listTickets({ status, priority, support_type });
 	res.render('public/list', {
 		title: 'Listado de Tickets',
 		tickets,
@@ -129,22 +129,22 @@ router.get('/tickets', (req, res) => {
 	});
 });
 
-router.get('/tickets/:reference', (req, res) => {
-	const ticket = findByReference(req.params.reference);
+router.get('/tickets/:reference', async (req, res) => {
+	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
 	res.render('public/detail', { title: `Ticket ${ticket.reference}`, ticket });
 });
 
-router.get('/tickets/:reference/editar', (req, res) => {
-	const ticket = findByReference(req.params.reference);
+router.get('/tickets/:reference/editar', async (req, res) => {
+	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
 	const token = req.query.token;
 	if (!token || token !== ticket.edit_token) return res.status(403).send('Token inválido');
 	res.render('public/edit', { title: `Editar ${ticket.reference}`, ticket, SUPPORT_TYPES, PRIORITIES, errors: {} });
 });
 
-router.post('/tickets/:reference/editar', upload.single('image'), (req, res) => {
-	const ticket = findByReference(req.params.reference);
+router.post('/tickets/:reference/editar', upload.single('image'), async (req, res) => {
+	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
 	const token = req.query.token;
 	if (!token || token !== ticket.edit_token) return res.status(403).send('Token inválido');
@@ -154,10 +154,10 @@ router.post('/tickets/:reference/editar', upload.single('image'), (req, res) => 
 	for (const f of fields) {
 		if (f in req.body && req.body[f]) updates[f] = req.body[f];
 	}
-	if ('has_anydesk' in req.body) updates.has_anydesk = String(req.body.has_anydesk) === 'yes' ? 1 : 0;
+	if ('has_anydesk' in req.body) updates.has_anydesk = String(req.body.has_anydesk) === 'yes';
 	if (req.file) updates.image_path = '/uploads/' + req.file.filename;
 
-	const updated = updateTicketByToken(ticket.edit_token, updates);
+	const updated = await updateTicketByToken(ticket.edit_token, updates);
 	if (!updated) return res.status(500).send('No se pudo actualizar');
 	res.redirect(`/tickets/${ticket.reference}`);
 });

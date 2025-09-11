@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getDb } = require('../db');
+const { getPool } = require('../db');
 const { STATUSES, listTickets, findByReference, updateStatusById } = require('../models/tickets');
 
 const router = express.Router();
@@ -14,10 +14,11 @@ router.get('/login', (req, res) => {
 	res.render('admin/login', { title: 'Acceso Admin', error: null });
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
 	const { username, password } = req.body;
 	if (!username || !password) return res.render('admin/login', { title: 'Acceso Admin', error: 'Credenciales inválidas' });
-	const user = getDb().prepare('SELECT * FROM users WHERE username = ?').get(username);
+	const { rows } = await getPool().query('SELECT * FROM users WHERE username = $1', [username]);
+	const user = rows[0];
 	if (!user) return res.render('admin/login', { title: 'Acceso Admin', error: 'Usuario o contraseña incorrectos' });
 	const ok = bcrypt.compareSync(password, user.password_hash);
 	if (!ok) return res.render('admin/login', { title: 'Acceso Admin', error: 'Usuario o contraseña incorrectos' });
@@ -31,24 +32,24 @@ router.post('/logout', (req, res) => {
 	});
 });
 
-router.get('/', requireAdmin, (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
 	const { status, priority, support_type } = req.query;
-	const tickets = listTickets({ status, priority, support_type }, 200, 0);
+	const tickets = await listTickets({ status, priority, support_type }, 200, 0);
 	res.render('admin/list', { title: 'Panel Admin', tickets, filters: { status, priority, support_type }, STATUSES, user: req.session.user });
 });
 
-router.get('/tickets/:reference', requireAdmin, (req, res) => {
-	const ticket = findByReference(req.params.reference);
+router.get('/tickets/:reference', requireAdmin, async (req, res) => {
+	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
 	res.render('admin/detail', { title: `Admin - ${ticket.reference}`, ticket, STATUSES, user: req.session.user });
 });
 
-router.post('/tickets/:reference/estado', requireAdmin, (req, res) => {
-	const ticket = findByReference(req.params.reference);
+router.post('/tickets/:reference/estado', requireAdmin, async (req, res) => {
+	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
 	const { status } = req.body;
 	try {
-		updateStatusById(ticket.id, status);
+		await updateStatusById(ticket.id, status);
 		res.redirect(`/admin/tickets/${ticket.reference}`);
 	} catch (e) {
 		res.status(400).send('Estado inválido');

@@ -4,63 +4,67 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title><%= title %></title>
-	<link rel="stylesheet" href="/public/styles.css" />
+	<script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-	<header>
-		<h1>Listado de Tickets</h1>
-		<nav>
-			<a href="/">Nuevo Ticket</a>
-			<a href="/admin/login">Admin</a>
-		</nav>
+<body class="bg-slate-50 text-slate-900">
+	<header class="bg-slate-900 text-white">
+		<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+			<h1 class="text-lg font-semibold">Listado de Tickets</h1>
+			<nav class="space-x-4 text-sm">
+				<a class="text-sky-200 hover:text-white" href="/">Nuevo Ticket</a>
+				<a class="text-sky-200 hover:text-white" href="/admin/login">Admin</a>
+			</nav>
+		</div>
 	</header>
-	<main>
-		<form method="get" class="filters">
-			<select name="status">
+	<main class="max-w-6xl mx-auto px-4 py-8">
+		<form method="get" class="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+			<select class="rounded-md border border-slate-300 px-3 py-2" name="status">
 				<option value="">Estado</option>
 				<% ['Pendiente','En Proceso','Resuelto','Cerrado'].forEach(s=>{ %>
 					<option value="<%= s %>" <%= (filters.status||'')===s ? 'selected' : '' %>><%= s %></option>
 				<% }) %>
 			</select>
-			<select name="priority">
+			<select class="rounded-md border border-slate-300 px-3 py-2" name="priority">
 				<option value="">Prioridad</option>
 				<% ['Baja – No es urgente','Media – Puede esperar unas horas','Alta – Necesito ayuda pronto','Crítica – Bloquea mi trabajo'].forEach(p=>{ %>
 					<option value="<%= p %>" <%= (filters.priority||'')===p ? 'selected' : '' %>><%= p %></option>
 				<% }) %>
 			</select>
-			<select name="support_type">
+			<select class="rounded-md border border-slate-300 px-3 py-2" name="support_type">
 				<option value="">Tipo de Soporte</option>
 				<% ['Hardware','Software','Red e Internet','Acceso y Permisos','Correo Electrónico','Otro'].forEach(t=>{ %>
 					<option value="<%= t %>" <%= (filters.support_type||'')===t ? 'selected' : '' %>><%= t %></option>
 				<% }) %>
 			</select>
-			<button type="submit">Filtrar</button>
+			<button class="rounded-md bg-sky-600 px-4 py-2 text-white hover:bg-sky-700" type="submit">Filtrar</button>
 		</form>
 
-		<table class="table">
-			<thead>
-				<tr>
-					<th>Referencia</th>
-					<th>Solicitante</th>
-					<th>Tipo</th>
-					<th>Prioridad</th>
-					<th>Estado</th>
-					<th>Creado</th>
-				</tr>
-			</thead>
-			<tbody>
-				<% tickets.forEach(t => { %>
+		<div class="overflow-hidden rounded-lg shadow">
+			<table class="min-w-full divide-y divide-slate-200 bg-white">
+				<thead class="bg-slate-50">
 					<tr>
-						<td><a href="/tickets/<%= t.reference %>"><%= t.reference %></a></td>
-						<td><%= t.requester_name %></td>
-						<td><%= t.support_type %></td>
-						<td><%= t.priority %></td>
-						<td><%= t.status %></td>
-						<td><%= new Date(t.created_at).toLocaleString() %></td>
+						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Referencia</th>
+						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Solicitante</th>
+						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Tipo</th>
+						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Prioridad</th>
+						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Estado</th>
+						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Creado</th>
 					</tr>
-				<% }) %>
-			</tbody>
-		</table>
+				</thead>
+				<tbody class="divide-y divide-slate-200">
+					<% tickets.forEach(t => { %>
+						<tr class="hover:bg-slate-50">
+							<td class="px-4 py-3"><a class="text-sky-700 hover:underline" href="/tickets/<%= t.reference %>"><%= t.reference %></a></td>
+							<td class="px-4 py-3"><%= t.requester_name %></td>
+							<td class="px-4 py-3"><%= t.support_type %></td>
+							<td class="px-4 py-3"><%= t.priority %></td>
+							<td class="px-4 py-3"><%= t.status %></td>
+							<td class="px-4 py-3"><%= new Date(t.created_at).toLocaleString() %></td>
+						</tr>
+					<% }) %>
+				</tbody>
+			</table>
+		</div>
 	</main>
 </body>
 </html>
