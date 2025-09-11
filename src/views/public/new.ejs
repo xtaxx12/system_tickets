@@ -4,86 +4,80 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title><%= title %></title>
-	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="stylesheet" href="/public/styles.css" />
 </head>
-<body class="bg-slate-50 text-slate-900">
-	<header class="bg-slate-900 text-white">
-		<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-			<h1 class="text-xl font-semibold">Crear Ticket de Soporte</h1>
-			<nav class="space-x-4 text-sm">
-				<a class="text-sky-300 hover:text-white" href="/tickets">Ver Tickets</a>
-				<a class="inline-flex items-center rounded-md bg-sky-600 px-3 py-1.5 text-white hover:bg-sky-500" href="/admin/login">Admin</a>
-			</nav>
-		</div>
+<body>
+	<header>
+		<h1>Crear Ticket de Soporte</h1>
+		<nav>
+			<a href="/tickets">Ver Tickets</a>
+			<a href="/admin/login">Admin</a>
+		</nav>
 	</header>
-	<main class="max-w-3xl mx-auto px-4 py-8">
-		<form action="/tickets" method="post" enctype="multipart/form-data" class="bg-white shadow-sm ring-1 ring-slate-200 rounded-xl p-6 space-y-5">
-			<div>
-				<label class="block text-sm font-medium text-slate-700">Nombre del solicitante *</label>
-				<input class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" type="text" name="requester_name" value="<%= data.requester_name || '' %>" required />
-				<% if (errors.requester_name) { %><p class="mt-1 text-xs text-red-600"><%= errors.requester_name %></p><% } %>
+	<main>
+		<form action="/tickets" method="post" enctype="multipart/form-data" class="form">
+			<div class="field">
+				<label>Nombre del solicitante *</label>
+				<input type="text" name="requester_name" value="<%= data.requester_name || '' %>" required />
+				<% if (errors.requester_name) { %><small class="error"><%= errors.requester_name %></small><% } %>
 			</div>
-			<div>
-				<label class="block text-sm font-medium text-slate-700">Área/Departamento *</label>
-				<input class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" type="text" name="department" value="<%= data.department || '' %>" required />
-				<% if (errors.department) { %><p class="mt-1 text-xs text-red-600"><%= errors.department %></p><% } %>
+			<div class="field">
+				<label>Área/Departamento *</label>
+				<input type="text" name="department" value="<%= data.department || '' %>" required />
+				<% if (errors.department) { %><small class="error"><%= errors.department %></small><% } %>
 			</div>
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div>
-					<label class="block text-sm font-medium text-slate-700">Tipo de Soporte *</label>
-					<select class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" name="support_type" required>
-						<option value="">Seleccione...</option>
-						<% SUPPORT_TYPES.forEach(t => { %>
-							<option value="<%= t %>" <%= data.support_type === t ? 'selected' : '' %>><%= t %></option>
-						<% }) %>
-					</select>
-					<% if (errors.support_type) { %><p class="mt-1 text-xs text-red-600"><%= errors.support_type %></p><% } %>
-				</div>
-				<div>
-					<label class="block text-sm font-medium text-slate-700">Prioridad *</label>
-					<select class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" name="priority" required>
-						<option value="">Seleccione...</option>
-						<% PRIORITIES.forEach(p => { %>
-							<option value="<%= p %>" <%= data.priority === p ? 'selected' : '' %>><%= p %></option>
-						<% }) %>
-					</select>
-					<% if (errors.priority) { %><p class="mt-1 text-xs text-red-600"><%= errors.priority %></p><% } %>
-				</div>
+			<div class="field">
+				<label>Tipo de Soporte *</label>
+				<select name="support_type" required>
+					<option value="">Seleccione...</option>
+					<% SUPPORT_TYPES.forEach(t => { %>
+						<option value="<%= t %>" <%= data.support_type === t ? 'selected' : '' %>><%= t %></option>
+					<% }) %>
+				</select>
+				<% if (errors.support_type) { %><small class="error"><%= errors.support_type %></small><% } %>
 			</div>
-			<div>
-				<label class="block text-sm font-medium text-slate-700">Asunto *</label>
-				<input class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" type="text" name="subject" value="<%= data.subject || '' %>" maxlength="120" required />
-				<% if (errors.subject) { %><p class="mt-1 text-xs text-red-600"><%= errors.subject %></p><% } %>
+			<div class="field">
+				<label>Prioridad *</label>
+				<select name="priority" required>
+					<option value="">Seleccione...</option>
+					<% PRIORITIES.forEach(p => { %>
+						<option value="<%= p %>" <%= data.priority === p ? 'selected' : '' %>><%= p %></option>
+					<% }) %>
+				</select>
+				<% if (errors.priority) { %><small class="error"><%= errors.priority %></small><% } %>
 			</div>
-			<div>
-				<label class="block text-sm font-medium text-slate-700">Descripción Detallada *</label>
-				<textarea class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" name="description" rows="6" required><%= data.description || '' %></textarea>
-				<% if (errors.description) { %><p class="mt-1 text-xs text-red-600"><%= errors.description %></p><% } %>
+			<div class="field">
+				<label>Asunto *</label>
+				<input type="text" name="subject" value="<%= data.subject || '' %>" maxlength="120" required />
+				<% if (errors.subject) { %><small class="error"><%= errors.subject %></small><% } %>
 			</div>
-			<div>
-				<label class="block text-sm font-medium text-slate-700">Subir Imagen (opcional)</label>
-				<input class="mt-1 block w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" type="file" name="image" accept="image/*" />
+			<div class="field">
+				<label>Descripción Detallada *</label>
+				<textarea name="description" rows="6" required><%= data.description || '' %></textarea>
+				<% if (errors.description) { %><small class="error"><%= errors.description %></small><% } %>
 			</div>
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div>
-					<label class="block text-sm font-medium text-slate-700">¿Tiene AnyDesk instalado?</label>
-					<select class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" name="has_anydesk" id="has_anydesk">
-						<option value="no" <%= (data.has_anydesk||'no')==='no' ? 'selected' : '' %>>No</option>
-						<option value="yes" <%= data.has_anydesk==='yes' ? 'selected' : '' %>>Sí</option>
-					</select>
-				</div>
-				<div id="anydesk_code_field" style="display:none;">
-					<label class="block text-sm font-medium text-slate-700">Código AnyDesk</label>
-					<input class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" type="text" name="anydesk_code" value="<%= data.anydesk_code || '' %>" />
-					<% if (errors.anydesk_code) { %><p class="mt-1 text-xs text-red-600"><%= errors.anydesk_code %></p><% } %>
-				</div>
+			<div class="field">
+				<label>Subir Imagen (opcional)</label>
+				<input type="file" name="image" accept="image/*" />
 			</div>
-			<div>
-				<label class="block text-sm font-medium text-slate-700">Correo para confirmación (opcional)</label>
-				<input class="mt-1 w-full rounded-lg border-slate-300 focus:border-sky-500 focus:ring-sky-500" type="email" name="email" placeholder="tu@correo.com" value="<%= data.email || '' %>" />
+			<div class="field">
+				<label>¿Tiene AnyDesk instalado?</label>
+				<select name="has_anydesk" id="has_anydesk">
+					<option value="no" <%= (data.has_anydesk||'no')==='no' ? 'selected' : '' %>>No</option>
+					<option value="yes" <%= data.has_anydesk==='yes' ? 'selected' : '' %>>Sí</option>
+				</select>
 			</div>
-			<div class="pt-2">
-				<button type="submit" class="inline-flex items-center rounded-lg bg-sky-600 px-4 py-2 text-white font-medium shadow hover:bg-sky-500">Crear Ticket</button>
+			<div class="field" id="anydesk_code_field" style="display:none;">
+				<label>Código AnyDesk</label>
+				<input type="text" name="anydesk_code" value="<%= data.anydesk_code || '' %>" />
+				<% if (errors.anydesk_code) { %><small class="error"><%= errors.anydesk_code %></small><% } %>
+			</div>
+			<div class="field">
+				<label>Correo para confirmación (opcional)</label>
+				<input type="email" name="email" placeholder="tu@correo.com" value="<%= data.email || '' %>" />
+			</div>
+			<div class="actions">
+				<button type="submit">Crear Ticket</button>
 			</div>
 		</form>
 	</main>

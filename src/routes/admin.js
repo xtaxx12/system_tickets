@@ -56,3 +56,4 @@ router.post('/tickets/:reference/estado', requireAdmin, (req, res) => {
 });
 
 module.exports = router;
+
