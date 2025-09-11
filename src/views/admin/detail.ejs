@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title><%= title %></title>
+	<link rel="stylesheet" href="/public/styles.css" />
+</head>
+<body>
+	<header>
+		<h1>Ticket <%= ticket.reference %> - Admin</h1>
+		<nav>
+			<a href="/admin">Volver</a>
+			<form action="/admin/logout" method="post" style="display:inline;">
+				<button type="submit">Salir</button>
+			</form>
+		</nav>
+	</header>
+	<main>
+		<section class="card">
+			<p><strong>Solicitante:</strong> <%= ticket.requester_name %></p>
+			<p><strong>Departamento:</strong> <%= ticket.department %></p>
+			<p><strong>Tipo de Soporte:</strong> <%= ticket.support_type %></p>
+			<p><strong>Prioridad:</strong> <%= ticket.priority %></p>
+			<p><strong>Estado:</strong> <%= ticket.status %></p>
+			<p><strong>Asunto:</strong> <%= ticket.subject %></p>
+			<p><strong>Descripción:</strong></p>
+			<p><%= ticket.description %></p>
+			<% if (ticket.image_path) { %>
+				<p><strong>Imagen adjunta:</strong></p>
+				<img src="<%= ticket.image_path %>" alt="Adjunto" style="max-width: 500px;" />
+			<% } %>
+			<p><strong>AnyDesk instalado:</strong> <%= ticket.has_anydesk ? 'Sí' : 'No' %></p>
+			<% if (ticket.has_anydesk && ticket.anydesk_code) { %>
+				<p><strong>Código AnyDesk:</strong> <%= ticket.anydesk_code %></p>
+			<% } %>
+			<p><strong>Creado:</strong> <%= new Date(ticket.created_at).toLocaleString() %></p>
+			<form action="/admin/tickets/<%= ticket.reference %>/estado" method="post" class="form">
+				<label>Cambiar estado</label>
+				<select name="status">
+					<% ['Pendiente','En Proceso','Resuelto','Cerrado'].forEach(s=>{ %>
+						<option value="<%= s %>" <%= ticket.status===s ? 'selected' : '' %>><%= s %></option>
+					<% }) %>
+				</select>
+				<button type="submit">Actualizar</button>
+			</form>
+		</section>
+	</main>
+</body>
+</html>
