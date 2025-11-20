@@ -1,9 +1,24 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 const { getPool } = require('../db');
 const { STATUSES, listTickets, findByReference, updateStatusById } = require('../models/tickets');
+const {
+	createComment,
+	getCommentsByTicketId,
+} = require('../models/comments');
 
 const router = express.Router();
+
+function getTransport() {
+	if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+	return nodemailer.createTransport({
+		host: process.env.SMTP_HOST,
+		port: Number(process.env.SMTP_PORT || 587),
+		secure: String(process.env.SMTP_SECURE || 'false') === 'true',
+		auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+	});
+}
 
 function requireAdmin(req, res, next) {
 	if (req.session && req.session.user && req.session.user.role === 'admin') return next();
@@ -41,7 +56,8 @@ router.get('/', requireAdmin, async (req, res) => {
 router.get('/tickets/:reference', requireAdmin, async (req, res) => {
 	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
-	res.render('admin/detail', { title: `Admin - ${ticket.reference}`, ticket, STATUSES, user: req.session.user });
+	const comments = await getCommentsByTicketId(ticket.id, true);
+	res.render('admin/detail', { title: `Admin - ${ticket.reference}`, ticket, comments, STATUSES, user: req.session.user });
 });
 
 router.post('/tickets/:reference/estado', requireAdmin, async (req, res) => {
@@ -53,6 +69,65 @@ router.post('/tickets/:reference/estado', requireAdmin, async (req, res) => {
 		res.redirect(`/admin/tickets/${ticket.reference}`);
 	} catch (e) {
 		res.status(400).send('Estado inválido');
+	}
+});
+
+router.post('/tickets/:reference/comments', requireAdmin, async (req, res) => {
+	try {
+		const ticket = await findByReference(req.params.reference);
+		if (!ticket) return res.status(404).send('Ticket no encontrado');
+
+		const { content, is_internal } = req.body;
+		if (!content) {
+			return res.status(400).send('El contenido es requerido');
+		}
+
+		const isInternal = is_internal === 'true' || is_internal === true;
+
+		await createComment({
+			ticket_id: ticket.id,
+			user_id: req.session.user.id,
+			author_name: req.session.user.username,
+			content,
+			is_internal: isInternal,
+		});
+
+		// Notificación por email si no es comentario interno
+		if (!isInternal) {
+			const transporter = getTransport();
+			if (transporter) {
+				// Buscar emails de comentarios previos del ticket
+				const prevComments = await getCommentsByTicketId(ticket.id, false);
+				const emails = [...new Set(prevComments.map(c => c.author_email).filter(e => e))];
+
+				if (emails.length > 0) {
+					const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+					const ticketUrl = `${baseUrl}/tickets/${ticket.reference}`;
+
+					try {
+						await transporter.sendMail({
+							from: process.env.SMTP_FROM || 'soporte@example.com',
+							to: emails.join(','),
+							subject: `Respuesta en ticket ${ticket.reference}`,
+							html: `
+								<p>Hola,</p>
+								<p>El equipo de soporte ha respondido en el ticket <b>${ticket.reference}</b>.</p>
+								<p><b>Respuesta:</b></p>
+								<p>${content}</p>
+								<p><a href="${ticketUrl}">Ver ticket completo</a></p>
+							`,
+						});
+					} catch (emailErr) {
+						console.error('Error enviando email:', emailErr);
+					}
+				}
+			}
+		}
+
+		res.redirect(`/admin/tickets/${ticket.reference}`);
+	} catch (err) {
+		console.error(err);
+		res.status(500).send('Error al crear comentario');
 	}
 });
 

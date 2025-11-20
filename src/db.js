@@ -52,6 +52,21 @@ async function ensureDatabaseInitialized() {
 		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority)`);
 		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_support_type ON tickets(support_type)`);
 
+		await client.query(`
+			CREATE TABLE IF NOT EXISTS comments (
+				id SERIAL PRIMARY KEY,
+				ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+				user_id INTEGER REFERENCES users(id),
+				author_name TEXT NOT NULL,
+				author_email TEXT,
+				content TEXT NOT NULL,
+				is_internal BOOLEAN NOT NULL DEFAULT false,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+		`);
+		await client.query(`CREATE INDEX IF NOT EXISTS idx_comments_ticket_id ON comments(ticket_id)`);
+		await client.query(`CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at)`);
+
 		const adminUser = process.env.ADMIN_USER || 'admin';
 		const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 		const existing = await client.query('SELECT id FROM users WHERE username = $1', [adminUser]);

@@ -10,6 +10,10 @@ const {
 	updateTicketByToken,
 	listTickets,
 } = require('../models/tickets');
+const {
+	createComment,
+	getCommentsByTicketId,
+} = require('../models/comments');
 
 const router = express.Router();
 
@@ -132,7 +136,8 @@ router.get('/tickets', async (req, res) => {
 router.get('/tickets/:reference', async (req, res) => {
 	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
-	res.render('public/detail', { title: `Ticket ${ticket.reference}`, ticket });
+	const comments = await getCommentsByTicketId(ticket.id, false);
+	res.render('public/detail', { title: `Ticket ${ticket.reference}`, ticket, comments });
 });
 
 router.get('/tickets/:reference/editar', async (req, res) => {
@@ -160,6 +165,52 @@ router.post('/tickets/:reference/editar', upload.single('image'), async (req, re
 	const updated = await updateTicketByToken(ticket.edit_token, updates);
 	if (!updated) return res.status(500).send('No se pudo actualizar');
 	res.redirect(`/tickets/${ticket.reference}`);
+});
+
+router.post('/tickets/:reference/comments', async (req, res) => {
+	try {
+		const ticket = await findByReference(req.params.reference);
+		if (!ticket) return res.status(404).send('Ticket no encontrado');
+
+		const { author_name, author_email, content } = req.body;
+		if (!author_name || !content) {
+			return res.status(400).send('Nombre y contenido son requeridos');
+		}
+
+		const comment = await createComment({
+			ticket_id: ticket.id,
+			author_name,
+			author_email: author_email || null,
+			content,
+			is_internal: false,
+		});
+
+		// Notificación por email (opcional)
+		const transporter = getTransport();
+		if (transporter && author_email) {
+			const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+			const ticketUrl = `${baseUrl}/tickets/${ticket.reference}`;
+			try {
+				await transporter.sendMail({
+					from: process.env.SMTP_FROM || 'soporte@example.com',
+					to: author_email,
+					subject: `Nuevo comentario en ticket ${ticket.reference}`,
+					html: `
+						<p>Hola ${author_name},</p>
+						<p>Tu comentario ha sido agregado al ticket <b>${ticket.reference}</b>.</p>
+						<p><a href="${ticketUrl}">Ver ticket</a></p>
+					`,
+				});
+			} catch (emailErr) {
+				console.error('Error enviando email:', emailErr);
+			}
+		}
+
+		res.redirect(`/tickets/${ticket.reference}`);
+	} catch (err) {
+		console.error(err);
+		res.status(500).send('Error al crear comentario');
+	}
 });
 
 module.exports = router;

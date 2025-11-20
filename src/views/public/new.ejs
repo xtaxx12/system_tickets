@@ -5,93 +5,567 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title><%= title %></title>
 	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		* { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+		body { background: #F7F8FA; }
+		.input-field { 
+			transition: all 0.2s ease;
+			border: 1.5px solid #E2E8F0;
+		}
+		.input-field:hover { 
+			border-color: #CBD5E1;
+		}
+		.input-field:focus { 
+			outline: none;
+			border-color: #3B82F6;
+			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+		}
+		.input-field.error {
+			border-color: #EF4444;
+		}
+		.input-field.error:focus {
+			box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+		}
+		.select-field {
+			appearance: none;
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+			background-position: right 0.75rem center;
+			background-repeat: no-repeat;
+			background-size: 1.25em 1.25em;
+			padding-right: 2.5rem;
+		}
+		.dropzone {
+			border: 2px dashed #CBD5E1;
+			transition: all 0.3s ease;
+		}
+		.dropzone:hover {
+			border-color: #3B82F6;
+			background: #F0F7FF;
+		}
+		.dropzone.dragover {
+			border-color: #3B82F6;
+			background: #EFF6FF;
+		}
+		.btn-primary {
+			background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+			transition: all 0.2s ease;
+		}
+		.btn-primary:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+		}
+		.btn-secondary {
+			transition: all 0.2s ease;
+		}
+		.btn-secondary:hover {
+			background: #F1F5F9;
+		}
+		.section-divider {
+			border-top: 1px solid #E2E8F0;
+			margin: 2rem 0;
+		}
+		.tooltip {
+			position: relative;
+			display: inline-block;
+		}
+		.char-counter {
+			font-size: 0.75rem;
+			color: #64748B;
+		}
+		.priority-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.375rem;
+			padding: 0.25rem 0.625rem;
+			border-radius: 9999px;
+			font-size: 0.75rem;
+			font-weight: 500;
+		}
+		.animate-fade-in {
+			animation: fadeIn 0.3s ease-in;
+		}
+		@keyframes fadeIn {
+			from { opacity: 0; transform: translateY(-10px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+	</style>
 </head>
-<body class="bg-slate-50 text-slate-900">
-	<header class="bg-slate-900 text-white">
-		<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-			<h1 class="text-lg font-semibold">Crear Ticket de Soporte</h1>
-			<nav class="space-x-4 text-sm">
-				<a class="text-sky-200 hover:text-white" href="/tickets">Ver Tickets</a>
-				<a class="text-sky-200 hover:text-white" href="/admin/login">Admin</a>
-			</nav>
+<body>
+	<!-- Header Minimalista -->
+	<header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div class="flex items-center justify-between h-16">
+				<div class="flex items-center gap-3">
+					<svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
+					</svg>
+					<h1 class="text-xl font-semibold text-gray-900">Sistema de Soporte</h1>
+				</div>
+				<nav class="flex items-center gap-2">
+					<a href="/tickets" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition">
+						Ver Tickets
+					</a>
+					<a href="/admin/login" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition">
+						Admin
+					</a>
+				</nav>
+			</div>
 		</div>
 	</header>
-	<main class="max-w-3xl mx-auto px-4 py-8">
-		<form action="/tickets" method="post" enctype="multipart/form-data" class="bg-white shadow rounded-lg p-6 space-y-5">
-			<div>
-				<label class="block text-sm font-medium mb-1">Nombre del solicitante *</label>
-				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="text" name="requester_name" value="<%= data.requester_name || '' %>" required />
-				<% if (errors.requester_name) { %><p class="text-sm text-red-600 mt-1"><%= errors.requester_name %></p><% } %>
+
+	<!-- Main Content -->
+	<main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+		<!-- Card Principal -->
+		<div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+			<!-- Header del Formulario -->
+			<div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 sm:px-8 py-6 border-b border-gray-200">
+				<h2 class="text-2xl font-bold text-gray-900">Crear Nuevo Ticket</h2>
+				<p class="mt-1 text-sm text-gray-600">Complete el formulario para reportar un problema o solicitar asistencia técnica</p>
 			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Área/Departamento *</label>
-				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="text" name="department" value="<%= data.department || '' %>" required />
-				<% if (errors.department) { %><p class="text-sm text-red-600 mt-1"><%= errors.department %></p><% } %>
-			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Tipo de Soporte *</label>
-				<select class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" name="support_type" required>
-					<option value="">Seleccione...</option>
-					<% SUPPORT_TYPES.forEach(t => { %>
-						<option value="<%= t %>" <%= data.support_type === t ? 'selected' : '' %>><%= t %></option>
-					<% }) %>
-				</select>
-				<% if (errors.support_type) { %><p class="text-sm text-red-600 mt-1"><%= errors.support_type %></p><% } %>
-			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Prioridad *</label>
-				<select class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" name="priority" required>
-					<option value="">Seleccione...</option>
-					<% PRIORITIES.forEach(p => { %>
-						<option value="<%= p %>" <%= data.priority === p ? 'selected' : '' %>><%= p %></option>
-					<% }) %>
-				</select>
-				<% if (errors.priority) { %><p class="text-sm text-red-600 mt-1"><%= errors.priority %></p><% } %>
-			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Asunto *</label>
-				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="text" name="subject" value="<%= data.subject || '' %>" maxlength="120" required />
-				<% if (errors.subject) { %><p class="text-sm text-red-600 mt-1"><%= errors.subject %></p><% } %>
-			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Descripción Detallada *</label>
-				<textarea class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" name="description" rows="6" required><%= data.description || '' %></textarea>
-				<% if (errors.description) { %><p class="text-sm text-red-600 mt-1"><%= errors.description %></p><% } %>
-			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Subir Imagen (opcional)</label>
-				<input class="block w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" type="file" name="image" accept="image/*" />
-			</div>
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+			<!-- Formulario -->
+			<form action="/tickets" method="post" enctype="multipart/form-data" class="p-6 sm:p-8">
+				
+				<!-- Sección 1: Datos del Solicitante -->
+				<div class="mb-8">
+					<div class="flex items-center gap-2 mb-5">
+						<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+						</svg>
+						<h3 class="text-lg font-semibold text-gray-900">Datos del Solicitante</h3>
+					</div>
+					
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+						<!-- Nombre del solicitante -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Nombre completo
+								<span class="text-red-500 ml-1">*</span>
+							</label>
+							<input 
+								type="text" 
+								name="requester_name" 
+								value="<%= data.requester_name || '' %>" 
+								class="input-field <%= errors.requester_name ? 'error' : '' %> w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400"
+								placeholder="Ej: Juan Pérez"
+								required 
+							/>
+							<% if (errors.requester_name) { %>
+								<p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									<%= errors.requester_name %>
+								</p>
+							<% } %>
+						</div>
+
+						<!-- Área/Departamento -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Área o Departamento
+								<span class="text-red-500 ml-1">*</span>
+							</label>
+							<input 
+								type="text" 
+								name="department" 
+								value="<%= data.department || '' %>" 
+								class="input-field <%= errors.department ? 'error' : '' %> w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400"
+								placeholder="Ej: Recursos Humanos"
+								required 
+							/>
+							<% if (errors.department) { %>
+								<p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									<%= errors.department %>
+								</p>
+							<% } %>
+						</div>
+					</div>
+				</div>
+
+				<!-- Divider -->
+				<div class="section-divider"></div>
+
+				<!-- Sección 2: Detalles del Soporte -->
+				<div class="mb-8">
+					<div class="flex items-center gap-2 mb-5">
+						<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+						</svg>
+						<h3 class="text-lg font-semibold text-gray-900">Detalles del Soporte</h3>
+					</div>
+					
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+						<!-- Tipo de Soporte -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Tipo de Soporte
+								<span class="text-red-500 ml-1">*</span>
+							</label>
+							<select 
+								name="support_type" 
+								class="input-field select-field <%= errors.support_type ? 'error' : '' %> w-full px-4 py-3 rounded-lg bg-white text-gray-900"
+								required
+							>
+								<option value="">Seleccione una opción...</option>
+								<% SUPPORT_TYPES.forEach(t => { %>
+									<option value="<%= t %>" <%= data.support_type === t ? 'selected' : '' %>><%= t %></option>
+								<% }) %>
+							</select>
+							<% if (errors.support_type) { %>
+								<p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									<%= errors.support_type %>
+								</p>
+							<% } %>
+						</div>
+
+						<!-- Prioridad -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Nivel de Prioridad
+								<span class="text-red-500 ml-1">*</span>
+							</label>
+							<select 
+								name="priority" 
+								class="input-field select-field <%= errors.priority ? 'error' : '' %> w-full px-4 py-3 rounded-lg bg-white text-gray-900"
+								required
+							>
+								<option value="">Seleccione una opción...</option>
+								<% PRIORITIES.forEach(p => { %>
+									<option value="<%= p %>" <%= data.priority === p ? 'selected' : '' %>><%= p %></option>
+								<% }) %>
+							</select>
+							<% if (errors.priority) { %>
+								<p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									<%= errors.priority %>
+								</p>
+							<% } %>
+							<p class="mt-1.5 text-xs text-gray-500">Seleccione según la urgencia del problema</p>
+						</div>
+					</div>
+
+					<!-- Asunto -->
+					<div class="mb-5">
+						<label class="block text-sm font-medium text-gray-700 mb-2">
+							Asunto
+							<span class="text-red-500 ml-1">*</span>
+						</label>
+						<input 
+							type="text" 
+							name="subject" 
+							value="<%= data.subject || '' %>" 
+							maxlength="120"
+							class="input-field <%= errors.subject ? 'error' : '' %> w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400"
+							placeholder="Resuma brevemente el problema"
+							required 
+							id="subject-input"
+						/>
+						<div class="flex items-center justify-between mt-1.5">
+							<% if (errors.subject) { %>
+								<p class="text-sm text-red-600 flex items-center gap-1">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									<%= errors.subject %>
+								</p>
+							<% } else { %>
+								<span></span>
+							<% } %>
+							<span class="char-counter" id="subject-counter">0/120</span>
+						</div>
+					</div>
+
+					<!-- Descripción Detallada -->
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">
+							Descripción Detallada
+							<span class="text-red-500 ml-1">*</span>
+						</label>
+						<textarea 
+							name="description" 
+							rows="6"
+							class="input-field <%= errors.description ? 'error' : '' %> w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400 resize-none"
+							placeholder="Describa el problema con el mayor detalle posible. Incluya pasos para reproducir el error, mensajes de error, etc."
+							required
+							id="description-input"
+						><%= data.description || '' %></textarea>
+						<div class="flex items-center justify-between mt-1.5">
+							<% if (errors.description) { %>
+								<p class="text-sm text-red-600 flex items-center gap-1">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									<%= errors.description %>
+								</p>
+							<% } else { %>
+								<p class="text-xs text-gray-500">Sea lo más específico posible</p>
+							<% } %>
+							<span class="char-counter" id="description-counter">0 caracteres</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Divider -->
+				<div class="section-divider"></div>
+
+				<!-- Sección 3: Información Adicional -->
+				<div class="mb-8">
+					<div class="flex items-center gap-2 mb-5">
+						<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+						</svg>
+						<h3 class="text-lg font-semibold text-gray-900">Información Adicional</h3>
+					</div>
+
+					<!-- Subir Imagen - Dropzone Moderna -->
+					<div class="mb-5">
+						<label class="block text-sm font-medium text-gray-700 mb-2">
+							Adjuntar Imagen
+							<span class="text-gray-500 font-normal ml-1">(opcional)</span>
+						</label>
+						<div class="dropzone rounded-lg p-6 text-center cursor-pointer" id="dropzone">
+							<input 
+								type="file" 
+								name="image" 
+								accept="image/*" 
+								class="hidden" 
+								id="file-input"
+							/>
+							<div id="dropzone-content">
+								<svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+									<path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+								</svg>
+								<p class="mt-2 text-sm text-gray-600">
+									<span class="font-medium text-blue-600 hover:text-blue-500">Haga clic para seleccionar</span> o arrastre una imagen aquí
+								</p>
+								<p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF hasta 10MB</p>
+							</div>
+							<div id="file-preview" class="hidden">
+								<div class="flex items-center justify-center gap-3">
+									<svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+									</svg>
+									<div class="text-left">
+										<p class="text-sm font-medium text-gray-900" id="file-name"></p>
+										<p class="text-xs text-gray-500" id="file-size"></p>
+									</div>
+								</div>
+								<button type="button" class="mt-3 text-sm text-red-600 hover:text-red-700 font-medium" id="remove-file">Eliminar archivo</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- AnyDesk y Correo -->
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+						<!-- AnyDesk -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								¿Tiene AnyDesk instalado?
+							</label>
+							<select 
+								name="has_anydesk" 
+								id="has_anydesk"
+								class="input-field select-field w-full px-4 py-3 rounded-lg bg-white text-gray-900"
+							>
+								<option value="no" <%= (data.has_anydesk||'no')==='no' ? 'selected' : '' %>>No</option>
+								<option value="yes" <%= data.has_anydesk==='yes' ? 'selected' : '' %>>Sí</option>
+							</select>
+							<p class="mt-1.5 text-xs text-gray-500">Software de acceso remoto</p>
+						</div>
+
+						<!-- Código AnyDesk (condicional) -->
+						<div id="anydesk_code_field" class="hidden animate-fade-in">
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Código AnyDesk
+								<span class="text-red-500 ml-1">*</span>
+							</label>
+							<input 
+								type="text" 
+								name="anydesk_code" 
+								value="<%= data.anydesk_code || '' %>" 
+								class="input-field <%= errors.anydesk_code ? 'error' : '' %> w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400"
+								placeholder="Ej: 123 456 789"
+							/>
+							<% if (errors.anydesk_code) { %>
+								<p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									<%= errors.anydesk_code %>
+								</p>
+							<% } %>
+						</div>
+					</div>
+
+					<!-- Correo -->
+					<div class="mt-5">
+						<label class="block text-sm font-medium text-gray-700 mb-2">
+							Correo Electrónico
+							<span class="text-gray-500 font-normal ml-1">(opcional)</span>
+						</label>
+						<input 
+							type="email" 
+							name="email" 
+							value="<%= data.email || '' %>" 
+							class="input-field w-full px-4 py-3 rounded-lg bg-white text-gray-900 placeholder-gray-400"
+							placeholder="correo@ejemplo.com"
+						/>
+						<p class="mt-1.5 text-xs text-gray-500">Recibirá notificaciones sobre el estado de su ticket</p>
+					</div>
+				</div>
+
+				<!-- Divider -->
+				<div class="section-divider"></div>
+
+				<!-- Botones de Acción -->
+				<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+					<p class="text-sm text-gray-500">
+						<span class="text-red-500">*</span> Campos obligatorios
+					</p>
+					<div class="flex items-center gap-3 w-full sm:w-auto">
+						<a href="/tickets" class="btn-secondary flex-1 sm:flex-none px-6 py-3 text-center rounded-lg border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition">
+							Cancelar
+						</a>
+						<button 
+							type="submit" 
+							class="btn-primary flex-1 sm:flex-none px-8 py-3 rounded-lg text-white font-semibold shadow-lg flex items-center justify-center gap-2"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+							</svg>
+							Crear Ticket
+						</button>
+					</div>
+				</div>
+			</form>
+		</div>
+
+		<!-- Info Card -->
+		<div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-5">
+			<div class="flex gap-3">
+				<svg class="w-6 h-6 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+				</svg>
 				<div>
-					<label class="block text-sm font-medium mb-1">¿Tiene AnyDesk instalado?</label>
-					<select class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" name="has_anydesk" id="has_anydesk">
-						<option value="no" <%= (data.has_anydesk||'no')==='no' ? 'selected' : '' %>>No</option>
-						<option value="yes" <%= data.has_anydesk==='yes' ? 'selected' : '' %>>Sí</option>
-					</select>
-				</div>
-				<div id="anydesk_code_field" style="display:none;">
-					<label class="block text-sm font-medium mb-1">Código AnyDesk</label>
-					<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="text" name="anydesk_code" value="<%= data.anydesk_code || '' %>" />
-					<% if (errors.anydesk_code) { %><p class="text-sm text-red-600 mt-1"><%= errors.anydesk_code %></p><% } %>
+					<h4 class="text-sm font-semibold text-blue-900 mb-1">Consejos para un mejor soporte</h4>
+					<ul class="text-sm text-blue-800 space-y-1">
+						<li>• Sea específico al describir el problema</li>
+						<li>• Incluya capturas de pantalla si es posible</li>
+						<li>• Mencione los pasos para reproducir el error</li>
+						<li>• Indique si el problema es recurrente o puntual</li>
+					</ul>
 				</div>
 			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Correo para confirmación (opcional)</label>
-				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="email" name="email" placeholder="tu@correo.com" value="<%= data.email || '' %>" />
-			</div>
-			<div class="pt-2">
-				<button class="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500" type="submit">Crear Ticket</button>
-			</div>
-		</form>
+		</div>
 	</main>
+
+	<!-- Scripts -->
 	<script>
-		function toggleAnydesk(){
+		// Character counters
+		const subjectInput = document.getElementById('subject-input');
+		const subjectCounter = document.getElementById('subject-counter');
+		const descriptionInput = document.getElementById('description-input');
+		const descriptionCounter = document.getElementById('description-counter');
+
+		if (subjectInput && subjectCounter) {
+			subjectInput.addEventListener('input', function() {
+				subjectCounter.textContent = this.value.length + '/120';
+			});
+			// Initialize counter
+			subjectCounter.textContent = subjectInput.value.length + '/120';
+		}
+
+		if (descriptionInput && descriptionCounter) {
+			descriptionInput.addEventListener('input', function() {
+				descriptionCounter.textContent = this.value.length + ' caracteres';
+			});
+			// Initialize counter
+			descriptionCounter.textContent = descriptionInput.value.length + ' caracteres';
+		}
+
+		// AnyDesk toggle
+		function toggleAnydesk() {
 			const sel = document.getElementById('has_anydesk');
-			document.getElementById('anydesk_code_field').style.display = sel.value === 'yes' ? 'block' : 'none';
+			const field = document.getElementById('anydesk_code_field');
+			if (sel.value === 'yes') {
+				field.classList.remove('hidden');
+				field.classList.add('animate-fade-in');
+			} else {
+				field.classList.add('hidden');
+			}
 		}
 		document.getElementById('has_anydesk').addEventListener('change', toggleAnydesk);
 		toggleAnydesk();
+
+		// Dropzone functionality
+		const dropzone = document.getElementById('dropzone');
+		const fileInput = document.getElementById('file-input');
+		const dropzoneContent = document.getElementById('dropzone-content');
+		const filePreview = document.getElementById('file-preview');
+		const fileName = document.getElementById('file-name');
+		const fileSize = document.getElementById('file-size');
+		const removeFileBtn = document.getElementById('remove-file');
+
+		dropzone.addEventListener('click', () => fileInput.click());
+
+		dropzone.addEventListener('dragover', (e) => {
+			e.preventDefault();
+			dropzone.classList.add('dragover');
+		});
+
+		dropzone.addEventListener('dragleave', () => {
+			dropzone.classList.remove('dragover');
+		});
+
+		dropzone.addEventListener('drop', (e) => {
+			e.preventDefault();
+			dropzone.classList.remove('dragover');
+			const files = e.dataTransfer.files;
+			if (files.length > 0) {
+				fileInput.files = files;
+				displayFile(files[0]);
+			}
+		});
+
+		fileInput.addEventListener('change', (e) => {
+			if (e.target.files.length > 0) {
+				displayFile(e.target.files[0]);
+			}
+		});
+
+		removeFileBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			fileInput.value = '';
+			dropzoneContent.classList.remove('hidden');
+			filePreview.classList.add('hidden');
+		});
+
+		function displayFile(file) {
+			fileName.textContent = file.name;
+			fileSize.textContent = formatFileSize(file.size);
+			dropzoneContent.classList.add('hidden');
+			filePreview.classList.remove('hidden');
+		}
+
+		function formatFileSize(bytes) {
+			if (bytes === 0) return '0 Bytes';
+			const k = 1024;
+			const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+			const i = Math.floor(Math.log(bytes) / Math.log(k));
+			return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+		}
 	</script>
 </body>
 </html>
