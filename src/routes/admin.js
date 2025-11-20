@@ -280,12 +280,16 @@ router.get('/', requireAdmin, async (req, res) => {
 	const myStats = await getTicketStats(myStatsFilters);
 	const myTotalTickets = await countTickets({ assigned_to: req.session.user.id });
 
+	// Obtener permisos del usuario
+	const userPermissions = await getUserPermissions(req.session.user.id);
+
 	res.render('admin/list', {
 		title: 'Panel Admin',
 		tickets,
 		filters: { status, priority, support_type, assigned_to, my_tickets },
 		STATUSES,
 		user: req.session.user,
+		userPermissions,
 		stats,
 		myStats,
 		myTotalTickets,
@@ -306,13 +310,18 @@ router.get('/tickets/:reference', requireAdmin, async (req, res) => {
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
 	const comments = await getCommentsByTicketId(ticket.id, true);
 	const technicians = await getAllTechnicians();
+
+	// Obtener permisos del usuario
+	const userPermissions = await getUserPermissions(req.session.user.id);
+
 	res.render('admin/detail', {
 		title: `Admin - ${ticket.reference}`,
 		ticket,
 		comments,
 		STATUSES,
 		technicians,
-		user: req.session.user
+		user: req.session.user,
+		userPermissions
 	});
 });
 
@@ -462,6 +471,82 @@ router.post('/usuarios/crear', requireSuperAdmin, async (req, res) => {
 			roles: roles,
 			user: req.session.user,
 			error: 'Error al crear el usuario',
+			success: null
+		});
+	}
+});
+
+router.post('/usuarios/:id/cambiar-rol', requireSuperAdmin, async (req, res) => {
+	const userId = parseInt(req.params.id);
+	const { role_id } = req.body;
+
+	try {
+		// No permitir cambiar el rol del propio usuario
+		if (userId === req.session.user.id) {
+			const { rows } = await getPool().query(`
+				SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
+				FROM users u
+				LEFT JOIN roles r ON u.role_id = r.id
+				ORDER BY u.created_at DESC
+			`);
+			const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
+
+			return res.render('admin/usuarios', {
+				title: 'Gestión de Usuarios',
+				users: rows,
+				roles: roles,
+				user: req.session.user,
+				error: 'No puedes cambiar tu propio rol',
+				success: null
+			});
+		}
+
+		// Validar que el rol existe
+		const { rows: roleRows } = await getPool().query('SELECT id, name FROM roles WHERE id = $1', [role_id]);
+		if (roleRows.length === 0) {
+			throw new Error('Rol no válido');
+		}
+
+		const roleName = roleRows[0].name;
+
+		// Actualizar el rol del usuario
+		await getPool().query(
+			'UPDATE users SET role = $1, role_id = $2 WHERE id = $3',
+			[roleName, role_id, userId]
+		);
+
+		const { rows } = await getPool().query(`
+			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
+			FROM users u
+			LEFT JOIN roles r ON u.role_id = r.id
+			ORDER BY u.created_at DESC
+		`);
+		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
+
+		res.render('admin/usuarios', {
+			title: 'Gestión de Usuarios',
+			users: rows,
+			roles: roles,
+			user: req.session.user,
+			error: null,
+			success: 'Rol actualizado exitosamente'
+		});
+	} catch (err) {
+		console.error('Error cambiando rol:', err);
+		const { rows } = await getPool().query(`
+			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
+			FROM users u
+			LEFT JOIN roles r ON u.role_id = r.id
+			ORDER BY u.created_at DESC
+		`);
+		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
+
+		res.render('admin/usuarios', {
+			title: 'Gestión de Usuarios',
+			users: rows,
+			roles: roles,
+			user: req.session.user,
+			error: 'Error al cambiar el rol del usuario',
 			success: null
 		});
 	}
