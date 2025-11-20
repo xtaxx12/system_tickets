@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const { getPool } = require('../db');
-const { STATUSES, listTickets, findByReference, updateStatusById } = require('../models/tickets');
+const { STATUSES, listTickets, findByReference, updateStatusById, countTickets, getTicketStats, getAllTechnicians, assignTicket } = require('../models/tickets');
 const {
 	createComment,
 	getCommentsByTicketId,
@@ -48,16 +48,52 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/', requireAdmin, async (req, res) => {
-	const { status, priority, support_type } = req.query;
-	const tickets = await listTickets({ status, priority, support_type }, 200, 0);
-	res.render('admin/list', { title: 'Panel Admin', tickets, filters: { status, priority, support_type }, STATUSES, user: req.session.user });
+	const { status, priority, support_type, assigned_to, page = 1 } = req.query;
+	const currentPage = parseInt(page) || 1;
+	const perPage = 15;
+	const offset = (currentPage - 1) * perPage;
+
+	const filters = { status, priority, support_type, assigned_to };
+	const tickets = await listTickets(filters, perPage, offset);
+	const totalTickets = await countTickets(filters);
+	const totalPages = Math.ceil(totalTickets / perPage);
+	const technicians = await getAllTechnicians();
+
+	// Obtener estadísticas totales (sin filtro de status para mostrar todos los estados)
+	const stats = await getTicketStats({ priority, support_type });
+
+	res.render('admin/list', {
+		title: 'Panel Admin',
+		tickets,
+		filters,
+		STATUSES,
+		user: req.session.user,
+		stats,
+		technicians,
+		pagination: {
+			currentPage,
+			totalPages,
+			totalTickets,
+			perPage,
+			hasNext: currentPage < totalPages,
+			hasPrev: currentPage > 1,
+		},
+	});
 });
 
 router.get('/tickets/:reference', requireAdmin, async (req, res) => {
 	const ticket = await findByReference(req.params.reference);
 	if (!ticket) return res.status(404).send('Ticket no encontrado');
 	const comments = await getCommentsByTicketId(ticket.id, true);
-	res.render('admin/detail', { title: `Admin - ${ticket.reference}`, ticket, comments, STATUSES, user: req.session.user });
+	const technicians = await getAllTechnicians();
+	res.render('admin/detail', {
+		title: `Admin - ${ticket.reference}`,
+		ticket,
+		comments,
+		STATUSES,
+		technicians,
+		user: req.session.user
+	});
 });
 
 router.post('/tickets/:reference/estado', requireAdmin, async (req, res) => {
@@ -69,6 +105,20 @@ router.post('/tickets/:reference/estado', requireAdmin, async (req, res) => {
 		res.redirect(`/admin/tickets/${ticket.reference}`);
 	} catch (e) {
 		res.status(400).send('Estado inválido');
+	}
+});
+
+router.post('/tickets/:reference/asignar', requireAdmin, async (req, res) => {
+	const ticket = await findByReference(req.params.reference);
+	if (!ticket) return res.status(404).send('Ticket no encontrado');
+	const { technician_id } = req.body;
+	try {
+		const technicianIdValue = technician_id && technician_id !== '' ? parseInt(technician_id) : null;
+		await assignTicket(ticket.id, technicianIdValue);
+		res.redirect(`/admin/tickets/${ticket.reference}`);
+	} catch (e) {
+		console.error('Error asignando ticket:', e);
+		res.status(500).send('Error al asignar ticket');
 	}
 });
 

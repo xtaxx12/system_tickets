@@ -44,13 +44,27 @@ async function ensureDatabaseInitialized() {
 				anydesk_code TEXT,
 				status TEXT NOT NULL DEFAULT 'Pendiente',
 				edit_token TEXT NOT NULL,
+				assigned_to INTEGER REFERENCES users(id),
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 		`);
+		// Migración: agregar assigned_to si no existe
+		await client.query(`
+			DO $$
+			BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name='tickets' AND column_name='assigned_to'
+				) THEN
+					ALTER TABLE tickets ADD COLUMN assigned_to INTEGER REFERENCES users(id);
+				END IF;
+			END $$;
+		`);
 		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)`);
 		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority)`);
 		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_support_type ON tickets(support_type)`);
+		await client.query(`CREATE INDEX IF NOT EXISTS idx_tickets_assigned_to ON tickets(assigned_to)`);
 
 		await client.query(`
 			CREATE TABLE IF NOT EXISTS comments (

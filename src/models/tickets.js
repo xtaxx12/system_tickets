@@ -89,7 +89,12 @@ async function findById(id) {
 }
 
 async function findByReference(reference) {
-	const { rows } = await getPool().query('SELECT * FROM tickets WHERE reference = $1', [reference]);
+	const { rows } = await getPool().query(`
+		SELECT t.*, u.username as assigned_username
+		FROM tickets t
+		LEFT JOIN users u ON t.assigned_to = u.id
+		WHERE t.reference = $1
+	`, [reference]);
 	return rows[0] || null;
 }
 
@@ -99,6 +104,44 @@ async function findByEditToken(editToken) {
 }
 
 async function listTickets(filters = {}, limit = 100, offset = 0) {
+	const where = [];
+	const params = [];
+	let idx = 1;
+	if (filters.status) {
+		where.push(`t.status = $${idx++}`);
+		params.push(filters.status);
+	}
+	if (filters.priority) {
+		where.push(`t.priority = $${idx++}`);
+		params.push(filters.priority);
+	}
+	if (filters.support_type) {
+		where.push(`t.support_type = $${idx++}`);
+		params.push(filters.support_type);
+	}
+	if (filters.assigned_to) {
+		if (filters.assigned_to === 'unassigned') {
+			where.push(`t.assigned_to IS NULL`);
+		} else {
+			where.push(`t.assigned_to = $${idx++}`);
+			params.push(parseInt(filters.assigned_to));
+		}
+	}
+	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+	params.push(limit, offset);
+	const sql = `
+		SELECT t.*, u.username as assigned_username
+		FROM tickets t
+		LEFT JOIN users u ON t.assigned_to = u.id
+		${whereSql}
+		ORDER BY t.created_at DESC
+		LIMIT $${idx++} OFFSET $${idx}
+	`;
+	const { rows } = await getPool().query(sql, params);
+	return rows;
+}
+
+async function countTickets(filters = {}) {
 	const where = [];
 	const params = [];
 	let idx = 1;
@@ -114,11 +157,70 @@ async function listTickets(filters = {}, limit = 100, offset = 0) {
 		where.push(`support_type = $${idx++}`);
 		params.push(filters.support_type);
 	}
+	if (filters.assigned_to) {
+		if (filters.assigned_to === 'unassigned') {
+			where.push(`assigned_to IS NULL`);
+		} else {
+			where.push(`assigned_to = $${idx++}`);
+			params.push(parseInt(filters.assigned_to));
+		}
+	}
 	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-	params.push(limit, offset);
-	const sql = `SELECT * FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx}`;
+	const sql = `SELECT COUNT(*) as total FROM tickets ${whereSql}`;
 	const { rows } = await getPool().query(sql, params);
+	return parseInt(rows[0].total);
+}
+
+async function getTicketStats(filters = {}) {
+	const where = [];
+	const params = [];
+	let idx = 1;
+	if (filters.priority) {
+		where.push(`priority = $${idx++}`);
+		params.push(filters.priority);
+	}
+	if (filters.support_type) {
+		where.push(`support_type = $${idx++}`);
+		params.push(filters.support_type);
+	}
+	const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+	const sql = `
+		SELECT 
+			COUNT(*) as total,
+			SUM(CASE WHEN status = 'Pendiente' THEN 1 ELSE 0 END) as pendiente,
+			SUM(CASE WHEN status = 'En Proceso' THEN 1 ELSE 0 END) as en_proceso,
+			SUM(CASE WHEN status = 'Resuelto' THEN 1 ELSE 0 END) as resuelto,
+			SUM(CASE WHEN status = 'Cerrado' THEN 1 ELSE 0 END) as cerrado
+		FROM tickets ${whereSql}
+	`;
+	const { rows } = await getPool().query(sql, params);
+	return {
+		total: parseInt(rows[0].total) || 0,
+		pendiente: parseInt(rows[0].pendiente) || 0,
+		enProceso: parseInt(rows[0].en_proceso) || 0,
+		resuelto: parseInt(rows[0].resuelto) || 0,
+		cerrado: parseInt(rows[0].cerrado) || 0,
+	};
+}
+
+async function getAllTechnicians() {
+	const { rows } = await getPool().query(`
+		SELECT id, username
+		FROM users
+		WHERE role = 'admin'
+		ORDER BY username ASC
+	`);
 	return rows;
+}
+
+async function assignTicket(ticketId, technicianId) {
+	const { rows } = await getPool().query(`
+		UPDATE tickets
+		SET assigned_to = $1, updated_at = NOW()
+		WHERE id = $2
+		RETURNING *
+	`, [technicianId || null, ticketId]);
+	return rows[0] || null;
 }
 
 module.exports = {
@@ -132,4 +234,8 @@ module.exports = {
 	findByReference,
 	findByEditToken,
 	listTickets,
+	countTickets,
+	getTicketStats,
+	getAllTechnicians,
+	assignTicket,
 };

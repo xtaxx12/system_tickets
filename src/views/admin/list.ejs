@@ -121,6 +121,18 @@
 		}
 	</style>
 </head>
+<%
+	// Helper function para construir query strings limpios
+	function buildQueryString(filters, page) {
+		const params = {};
+		if (filters.status) params.status = filters.status;
+		if (filters.priority) params.priority = filters.priority;
+		if (filters.support_type) params.support_type = filters.support_type;
+		if (filters.assigned_to) params.assigned_to = filters.assigned_to;
+		if (page) params.page = page;
+		return new URLSearchParams(params).toString();
+	}
+%>
 <body>
 	<!-- Header Administrativo -->
 	<header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
@@ -168,43 +180,59 @@
 				<h2 class="text-lg font-semibold text-gray-900">Filtros de Búsqueda</h2>
 			</div>
 			
-			<form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-				<!-- Estado -->
-				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-					<select name="status" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
-						<option value="">Todos los estados</option>
-						<% ['Pendiente','En Proceso','Resuelto','Cerrado'].forEach(s=>{ %>
-							<option value="<%= s %>" <%= (filters.status||'')===s ? 'selected' : '' %>><%= s %></option>
-						<% }) %>
-					</select>
-				</div>
+			<form method="get" class="space-y-4">
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+					<!-- Estado -->
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+						<select name="status" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+							<option value="">Todos los estados</option>
+							<% ['Pendiente','En Proceso','Resuelto','Cerrado'].forEach(s=>{ %>
+								<option value="<%= s %>" <%= (filters.status||'')===s ? 'selected' : '' %>><%= s %></option>
+							<% }) %>
+						</select>
+					</div>
 
-				<!-- Prioridad -->
-				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
-					<select name="priority" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
-						<option value="">Todas las prioridades</option>
-						<% ['Baja – No es urgente','Media – Puede esperar unas horas','Alta – Necesito ayuda pronto','Crítica – Bloquea mi trabajo'].forEach(p=>{ %>
-							<option value="<%= p %>" <%= (filters.priority||'')===p ? 'selected' : '' %>><%= p %></option>
-						<% }) %>
-					</select>
-				</div>
+					<!-- Prioridad -->
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
+						<select name="priority" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+							<option value="">Todas las prioridades</option>
+							<% ['Baja – No es urgente','Media – Puede esperar unas horas','Alta – Necesito ayuda pronto','Crítica – Bloquea mi trabajo'].forEach(p=>{ %>
+								<option value="<%= p %>" <%= (filters.priority||'')===p ? 'selected' : '' %>><%= p %></option>
+							<% }) %>
+						</select>
+					</div>
 
-				<!-- Tipo de Soporte -->
-				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Soporte</label>
-					<select name="support_type" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
-						<option value="">Todos los tipos</option>
-						<% ['Hardware','Software','Red e Internet','Acceso y Permisos','Correo Electrónico','Otro'].forEach(t=>{ %>
-							<option value="<%= t %>" <%= (filters.support_type||'')===t ? 'selected' : '' %>><%= t %></option>
-						<% }) %>
-					</select>
+					<!-- Tipo de Soporte -->
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Soporte</label>
+						<select name="support_type" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+							<option value="">Todos los tipos</option>
+							<% ['Hardware','Software','Red e Internet','Acceso y Permisos','Correo Electrónico','Otro'].forEach(t=>{ %>
+								<option value="<%= t %>" <%= (filters.support_type||'')===t ? 'selected' : '' %>><%= t %></option>
+							<% }) %>
+						</select>
+					</div>
+
+					<!-- Técnico Asignado -->
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">Técnico Asignado</label>
+						<select name="assigned_to" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+							<option value="">Todos los técnicos</option>
+							<option value="unassigned" <%= (filters.assigned_to||'')==='unassigned' ? 'selected' : '' %>>Sin asignar</option>
+							<% technicians.forEach(tech => { %>
+								<option value="<%= tech.id %>" <%= (filters.assigned_to||'')==String(tech.id) ? 'selected' : '' %>>
+									<%= tech.username %>
+								</option>
+							<% }) %>
+						</select>
+					</div>
 				</div>
 
 				<!-- Botón Filtrar -->
-				<div class="flex items-end">
-					<button type="submit" class="btn-primary w-full px-6 py-2.5 rounded-lg text-white font-semibold shadow-lg flex items-center justify-center gap-2">
+				<div class="flex justify-end">
+					<button type="submit" class="btn-primary px-6 py-2.5 rounded-lg text-white font-semibold shadow-lg flex items-center justify-center gap-2">
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
 						</svg>
@@ -220,7 +248,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Total Tickets</p>
-						<p class="text-2xl font-bold text-gray-900 mt-1"><%= tickets.length %></p>
+						<p class="text-2xl font-bold text-gray-900 mt-1"><%= stats.total %></p>
 					</div>
 					<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
 						<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,7 +262,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Pendientes</p>
-						<p class="text-2xl font-bold text-yellow-600 mt-1"><%= tickets.filter(t => t.status === 'Pendiente').length %></p>
+						<p class="text-2xl font-bold text-yellow-600 mt-1"><%= stats.pendiente %></p>
 					</div>
 					<div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
 						<svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -248,7 +276,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">En Proceso</p>
-						<p class="text-2xl font-bold text-blue-600 mt-1"><%= tickets.filter(t => t.status === 'En Proceso').length %></p>
+						<p class="text-2xl font-bold text-blue-600 mt-1"><%= stats.enProceso %></p>
 					</div>
 					<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
 						<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,7 +290,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Resueltos</p>
-						<p class="text-2xl font-bold text-green-600 mt-1"><%= tickets.filter(t => t.status === 'Resuelto').length %></p>
+						<p class="text-2xl font-bold text-green-600 mt-1"><%= stats.resuelto %></p>
 					</div>
 					<div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
 						<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,6 +331,9 @@
 								</th>
 								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
 									Estado
+								</th>
+								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+									Técnico
 								</th>
 								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
 									Fecha Creación
@@ -365,18 +396,30 @@
 											<%= t.status %>
 										</span>
 									</td>
+									<td class="px-6 py-4">
+										<% if (t.assigned_username) { %>
+											<div class="flex items-center gap-2">
+												<div class="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+													<%= t.assigned_username.charAt(0).toUpperCase() %>
+												</div>
+												<span class="text-sm font-medium text-gray-900"><%= t.assigned_username %></span>
+											</div>
+										<% } else { %>
+											<span class="text-xs text-gray-400 italic">Sin asignar</span>
+										<% } %>
+									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<div class="text-sm text-gray-900">
-											<%= new Date(t.created_at).toLocaleDateString('es-ES', { 
-												year: 'numeric', 
-												month: 'short', 
-												day: 'numeric' 
+											<%= new Date(t.created_at).toLocaleDateString('es-ES', {
+												year: 'numeric',
+												month: 'short',
+												day: 'numeric'
 											}) %>
 										</div>
 										<div class="text-xs text-gray-500">
-											<%= new Date(t.created_at).toLocaleTimeString('es-ES', { 
-												hour: '2-digit', 
-												minute: '2-digit' 
+											<%= new Date(t.created_at).toLocaleTimeString('es-ES', {
+												hour: '2-digit',
+												minute: '2-digit'
 											}) %>
 										</div>
 									</td>
@@ -388,10 +431,108 @@
 			</div>
 		</div>
 
-		<!-- Info Footer -->
-		<div class="mt-6 text-center text-sm text-gray-500">
-			Mostrando <%= tickets.length %> ticket<%= tickets.length !== 1 ? 's' : '' %>
-		</div>
+		<!-- Paginación -->
+		<% if (pagination.totalPages > 1) { %>
+			<div class="mt-6 flex items-center justify-between">
+				<div class="text-sm text-gray-600">
+					Mostrando <span class="font-semibold text-gray-900"><%= ((pagination.currentPage - 1) * pagination.perPage) + 1 %></span> 
+					a <span class="font-semibold text-gray-900"><%= Math.min(pagination.currentPage * pagination.perPage, pagination.totalTickets) %></span> 
+					de <span class="font-semibold text-gray-900"><%= pagination.totalTickets %></span> tickets
+				</div>
+				
+				<nav class="flex items-center gap-2">
+					<!-- Botón Anterior -->
+					<% if (pagination.hasPrev) { %>
+						<a href="?<%= buildQueryString(filters, pagination.currentPage - 1) %>"
+						   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+							</svg>
+							Anterior
+						</a>
+					<% } else { %>
+						<span class="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed flex items-center gap-2">
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+							</svg>
+							Anterior
+						</span>
+					<% } %>
+
+					<!-- Números de página -->
+					<div class="hidden sm:flex items-center gap-1">
+						<% 
+							const maxPages = 7;
+							let startPage = Math.max(1, pagination.currentPage - Math.floor(maxPages / 2));
+							let endPage = Math.min(pagination.totalPages, startPage + maxPages - 1);
+							if (endPage - startPage < maxPages - 1) {
+								startPage = Math.max(1, endPage - maxPages + 1);
+							}
+						%>
+
+						<% if (startPage > 1) { %>
+							<a href="?<%= buildQueryString(filters, 1) %>"
+							   class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+								1
+							</a>
+							<% if (startPage > 2) { %>
+								<span class="px-2 text-gray-500">...</span>
+							<% } %>
+						<% } %>
+
+						<% for (let i = startPage; i <= endPage; i++) { %>
+							<% if (i === pagination.currentPage) { %>
+								<span class="px-3 py-2 text-sm font-semibold text-white bg-blue-600 border border-blue-600 rounded-lg">
+									<%= i %>
+								</span>
+							<% } else { %>
+								<a href="?<%= buildQueryString(filters, i) %>"
+								   class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+									<%= i %>
+								</a>
+							<% } %>
+						<% } %>
+
+						<% if (endPage < pagination.totalPages) { %>
+							<% if (endPage < pagination.totalPages - 1) { %>
+								<span class="px-2 text-gray-500">...</span>
+							<% } %>
+							<a href="?<%= buildQueryString(filters, pagination.totalPages) %>"
+							   class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+								<%= pagination.totalPages %>
+							</a>
+						<% } %>
+					</div>
+
+					<!-- Indicador móvil -->
+					<div class="sm:hidden px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg">
+						<%= pagination.currentPage %> / <%= pagination.totalPages %>
+					</div>
+
+					<!-- Botón Siguiente -->
+					<% if (pagination.hasNext) { %>
+						<a href="?<%= buildQueryString(filters, pagination.currentPage + 1) %>"
+						   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+							Siguiente
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+							</svg>
+						</a>
+					<% } else { %>
+						<span class="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed flex items-center gap-2">
+							Siguiente
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+							</svg>
+						</span>
+					<% } %>
+				</nav>
+			</div>
+		<% } else { %>
+			<div class="mt-6 text-center text-sm text-gray-500">
+				Mostrando <%= tickets.length %> ticket<%= tickets.length !== 1 ? 's' : '' %>
+			</div>
+		<% } %>
 	</main>
 </body>
 </html>

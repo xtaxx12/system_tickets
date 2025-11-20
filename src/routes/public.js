@@ -9,6 +9,8 @@ const {
 	findByReference,
 	updateTicketByToken,
 	listTickets,
+	countTickets,
+	getTicketStats,
 } = require('../models/tickets');
 const {
 	createComment,
@@ -124,13 +126,38 @@ router.post('/tickets', upload.single('image'), async (req, res) => {
 });
 
 router.get('/tickets', async (req, res) => {
-	const { status, priority, support_type } = req.query;
-	const tickets = await listTickets({ status, priority, support_type });
-	res.render('public/list', {
-		title: 'Listado de Tickets',
-		tickets,
-		filters: { status, priority, support_type },
-	});
+	try {
+		const { status, priority, support_type, page = 1 } = req.query;
+		const currentPage = parseInt(page) || 1;
+		const perPage = 10;
+		const offset = (currentPage - 1) * perPage;
+		
+		const filters = { status, priority, support_type };
+		const tickets = await listTickets(filters, perPage, offset);
+		const totalTickets = await countTickets(filters);
+		const totalPages = Math.ceil(totalTickets / perPage);
+		
+		// Obtener estadísticas totales (sin filtro de status para mostrar todos los estados)
+		const stats = await getTicketStats({ priority, support_type });
+		
+		res.render('public/list', {
+			title: 'Listado de Tickets',
+			tickets,
+			filters,
+			stats,
+			pagination: {
+				currentPage,
+				totalPages,
+				totalTickets,
+				perPage,
+				hasNext: currentPage < totalPages,
+				hasPrev: currentPage > 1,
+			},
+		});
+	} catch (error) {
+		console.error('Error en /tickets:', error);
+		res.status(500).send('Error al cargar los tickets');
+	}
 });
 
 router.get('/tickets/:reference', async (req, res) => {
