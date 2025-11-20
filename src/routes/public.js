@@ -16,6 +16,10 @@ const {
 	createComment,
 	getCommentsByTicketId,
 } = require('../models/comments');
+const {
+	notifyNewTicket,
+	notifyHighPriorityUnassigned,
+} = require('../models/notifications');
 
 const router = express.Router();
 
@@ -97,6 +101,17 @@ router.post('/tickets', upload.single('image'), async (req, res) => {
 			has_anydesk: String(has_anydesk) === 'yes',
 			anydesk_code,
 		});
+
+		// Notificar a admins y supervisores sobre el nuevo ticket
+		try {
+			await notifyNewTicket(ticket);
+			// Si es de alta prioridad, enviar notificación adicional
+			if (priority === 'Alta') {
+				await notifyHighPriorityUnassigned(ticket);
+			}
+		} catch (notifErr) {
+			console.error('Error al crear notificaciones:', notifErr);
+		}
 
 		// Envío opcional de correo
 		if (email) {

@@ -205,10 +205,16 @@ async function getTicketStats(filters = {}) {
 
 async function getAllTechnicians() {
 	const { rows } = await getPool().query(`
-		SELECT id, username
+		SELECT id, username, role
 		FROM users
-		WHERE role = 'admin'
-		ORDER BY username ASC
+		WHERE role IN ('admin', 'supervisor', 'tecnico')
+		ORDER BY
+			CASE role
+				WHEN 'admin' THEN 1
+				WHEN 'supervisor' THEN 2
+				WHEN 'tecnico' THEN 3
+			END,
+			username ASC
 	`);
 	return rows;
 }

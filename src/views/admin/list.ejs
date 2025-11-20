@@ -119,6 +119,63 @@
 			font-size: 0.875rem;
 			font-weight: 600;
 		}
+		.notification-btn {
+			position: relative;
+			padding: 0.5rem;
+			background: #F9FAFB;
+			border: 1.5px solid #E5E7EB;
+			border-radius: 0.5rem;
+			color: #6B7280;
+			transition: all 0.2s ease;
+		}
+		.notification-btn:hover {
+			background: #F3F4F6;
+			border-color: #D1D5DB;
+			color: #374151;
+		}
+		.notification-badge {
+			position: absolute;
+			top: -4px;
+			right: -4px;
+			background: #EF4444;
+			color: white;
+			font-size: 0.625rem;
+			font-weight: 700;
+			padding: 0.125rem 0.375rem;
+			border-radius: 9999px;
+			min-width: 1.25rem;
+			text-align: center;
+		}
+		.notification-dropdown {
+			display: none;
+			position: absolute;
+			top: 100%;
+			right: 0;
+			margin-top: 0.5rem;
+			width: 384px;
+			max-height: 480px;
+			overflow-y: auto;
+			background: white;
+			border: 1px solid #E5E7EB;
+			border-radius: 0.75rem;
+			box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+			z-index: 100;
+		}
+		.notification-dropdown.show {
+			display: block;
+		}
+		.notification-item {
+			padding: 1rem;
+			border-bottom: 1px solid #F3F4F6;
+			transition: all 0.2s ease;
+			cursor: pointer;
+		}
+		.notification-item:hover {
+			background: #F9FAFB;
+		}
+		.notification-item:last-child {
+			border-bottom: none;
+		}
 	</style>
 </head>
 <%
@@ -128,7 +185,8 @@
 		if (filters.status) params.status = filters.status;
 		if (filters.priority) params.priority = filters.priority;
 		if (filters.support_type) params.support_type = filters.support_type;
-		if (filters.assigned_to) params.assigned_to = filters.assigned_to;
+		if (filters.assigned_to && filters.my_tickets !== 'true') params.assigned_to = filters.assigned_to;
+		if (filters.my_tickets === 'true') params.my_tickets = 'true';
 		if (page) params.page = page;
 		return new URLSearchParams(params).toString();
 	}
@@ -150,12 +208,42 @@
 					</div>
 				</div>
 				<div class="flex items-center gap-3">
-					<div class="admin-badge">
+					<% if (user.role === 'admin') { %>
+						<a href="/admin/usuarios" class="px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition flex items-center gap-2">
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+							</svg>
+							Usuarios
+						</a>
+					<% } %>
+					<!-- Notificaciones -->
+					<div class="relative" id="notification-container">
+						<button class="notification-btn" id="notification-btn">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+							</svg>
+							<span class="notification-badge" id="notification-badge" style="display: none;">0</span>
+						</button>
+						<div class="notification-dropdown" id="notification-dropdown">
+							<div class="p-4 border-b border-gray-200 flex items-center justify-between">
+								<h3 class="font-semibold text-gray-900">Notificaciones</h3>
+								<button id="mark-all-read" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+									Marcar todas como leídas
+								</button>
+							</div>
+							<div id="notification-list">
+								<div class="p-4 text-center text-gray-500 text-sm">
+									Cargando notificaciones...
+								</div>
+							</div>
+						</div>
+					</div>
+					<a href="/admin/perfil" class="admin-badge hover:shadow-md transition">
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
 						</svg>
 						<span><%= user.username %></span>
-					</div>
+					</a>
 					<form action="/admin/logout" method="post" class="inline">
 						<button type="submit" class="btn-logout px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2">
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,6 +259,40 @@
 
 	<!-- Main Content -->
 	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		<!-- Toggle Mis Tickets -->
+		<div class="mb-6 flex items-center justify-between">
+			<div class="flex items-center gap-4">
+				<% if (filters.my_tickets === 'true') { %>
+					<a href="/admin" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-semibold shadow-lg flex items-center gap-2 hover:from-blue-600 hover:to-blue-700 transition">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+						</svg>
+						Mis Tickets
+						<span class="bg-white/20 px-2 py-0.5 rounded-full text-xs"><%= myTotalTickets %></span>
+					</a>
+					<a href="/admin" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium">
+						Ver Todos
+					</a>
+				<% } else { %>
+					<a href="/admin?my_tickets=true" class="px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-50 transition">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+						</svg>
+						Mis Tickets
+						<span class="bg-blue-100 px-2 py-0.5 rounded-full text-xs"><%= myTotalTickets %></span>
+					</a>
+					<span class="px-4 py-2 text-sm text-gray-600 font-medium">
+						Todos los Tickets
+					</span>
+				<% } %>
+			</div>
+			<% if (filters.my_tickets === 'true') { %>
+				<div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-800">
+					<strong>Mostrando solo tus tickets asignados</strong>
+				</div>
+			<% } %>
+		</div>
+
 		<!-- Filtros -->
 		<div class="filter-card p-6 mb-6">
 			<div class="flex items-center gap-2 mb-4">
@@ -218,7 +340,7 @@
 					<!-- Técnico Asignado -->
 					<div>
 						<label class="block text-sm font-medium text-gray-700 mb-2">Técnico Asignado</label>
-						<select name="assigned_to" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+						<select name="assigned_to" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900" <%= filters.my_tickets === 'true' ? 'disabled' : '' %>>
 							<option value="">Todos los técnicos</option>
 							<option value="unassigned" <%= (filters.assigned_to||'')==='unassigned' ? 'selected' : '' %>>Sin asignar</option>
 							<% technicians.forEach(tech => { %>
@@ -227,6 +349,9 @@
 								</option>
 							<% }) %>
 						</select>
+						<% if (filters.my_tickets === 'true') { %>
+							<p class="text-xs text-gray-500 mt-1">Filtro no disponible en "Mis Tickets"</p>
+						<% } %>
 					</div>
 				</div>
 
@@ -243,15 +368,23 @@
 		</div>
 
 		<!-- Estadísticas Rápidas -->
+		<%
+			// Usar estadísticas personales si está viendo "Mis Tickets"
+			const displayStats = filters.my_tickets === 'true' ? myStats : stats;
+			const statsLabel = filters.my_tickets === 'true' ? 'Mis Tickets' : 'Total Tickets';
+		%>
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-			<div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+			<div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm <%= filters.my_tickets === 'true' ? 'ring-2 ring-blue-500' : '' %>">
 				<div class="flex items-center justify-between">
 					<div>
-						<p class="text-sm font-medium text-gray-600">Total Tickets</p>
-						<p class="text-2xl font-bold text-gray-900 mt-1"><%= stats.total %></p>
+						<p class="text-sm font-medium text-gray-600"><%= statsLabel %></p>
+						<p class="text-2xl font-bold text-gray-900 mt-1"><%= displayStats.total %></p>
+						<% if (filters.my_tickets === 'true') { %>
+							<p class="text-xs text-blue-600 mt-1">Solo tuyos</p>
+						<% } %>
 					</div>
-					<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-						<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div class="w-12 h-12 <%= filters.my_tickets === 'true' ? 'bg-blue-500' : 'bg-blue-100' %> rounded-lg flex items-center justify-center">
+						<svg class="w-6 h-6 <%= filters.my_tickets === 'true' ? 'text-white' : 'text-blue-600' %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
 						</svg>
 					</div>
@@ -262,7 +395,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Pendientes</p>
-						<p class="text-2xl font-bold text-yellow-600 mt-1"><%= stats.pendiente %></p>
+						<p class="text-2xl font-bold text-yellow-600 mt-1"><%= displayStats.pendiente %></p>
 					</div>
 					<div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
 						<svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,7 +409,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">En Proceso</p>
-						<p class="text-2xl font-bold text-blue-600 mt-1"><%= stats.enProceso %></p>
+						<p class="text-2xl font-bold text-blue-600 mt-1"><%= displayStats.enProceso %></p>
 					</div>
 					<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
 						<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,7 +423,7 @@
 				<div class="flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium text-gray-600">Resueltos</p>
-						<p class="text-2xl font-bold text-green-600 mt-1"><%= stats.resuelto %></p>
+						<p class="text-2xl font-bold text-green-600 mt-1"><%= displayStats.resuelto %></p>
 					</div>
 					<div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
 						<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -307,11 +440,28 @@
 				<% if (tickets.length === 0) { %>
 					<!-- Estado Vacío -->
 					<div class="empty-state">
-						<svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-						</svg>
-						<h3 class="mt-4 text-lg font-semibold text-gray-900">No hay tickets disponibles</h3>
-						<p class="mt-2 text-sm text-gray-600">No se encontraron tickets con los filtros seleccionados.</p>
+						<% if (filters.my_tickets === 'true') { %>
+							<svg class="mx-auto h-24 w-24 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+							</svg>
+							<h3 class="mt-4 text-lg font-semibold text-gray-900">No tienes tickets asignados</h3>
+							<p class="mt-2 text-sm text-gray-600">
+								<% if (user.role === 'tecnico') { %>
+									Espera a que un supervisor o administrador te asigne tickets.
+								<% } else { %>
+									Actualmente no tienes tickets asignados a tu nombre.
+								<% } %>
+							</p>
+							<a href="/admin" class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+								Ver Todos los Tickets
+							</a>
+						<% } else { %>
+							<svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+							</svg>
+							<h3 class="mt-4 text-lg font-semibold text-gray-900">No hay tickets disponibles</h3>
+							<p class="mt-2 text-sm text-gray-600">No se encontraron tickets con los filtros seleccionados.</p>
+						<% } %>
 					</div>
 				<% } else { %>
 					<table class="min-w-full divide-y divide-gray-200">
@@ -534,5 +684,146 @@
 			</div>
 		<% } %>
 	</main>
+
+	<script>
+		// Sistema de notificaciones
+		let notificationDropdown = null;
+		let notificationBtn = null;
+		let notificationBadge = null;
+		let notificationList = null;
+
+		document.addEventListener('DOMContentLoaded', function() {
+			notificationDropdown = document.getElementById('notification-dropdown');
+			notificationBtn = document.getElementById('notification-btn');
+			notificationBadge = document.getElementById('notification-badge');
+			notificationList = document.getElementById('notification-list');
+
+			// Toggle dropdown
+			notificationBtn.addEventListener('click', function(e) {
+				e.stopPropagation();
+				notificationDropdown.classList.toggle('show');
+				if (notificationDropdown.classList.contains('show')) {
+					loadNotifications();
+				}
+			});
+
+			// Cerrar dropdown al hacer clic fuera
+			document.addEventListener('click', function(e) {
+				if (!document.getElementById('notification-container').contains(e.target)) {
+					notificationDropdown.classList.remove('show');
+				}
+			});
+
+			// Marcar todas como leídas
+			document.getElementById('mark-all-read').addEventListener('click', function() {
+				markAllAsRead();
+			});
+
+			// Cargar notificaciones al inicio
+			loadNotifications();
+
+			// Actualizar cada 30 segundos
+			setInterval(loadNotifications, 30000);
+		});
+
+		async function loadNotifications() {
+			try {
+				const response = await fetch('/admin/notifications');
+				const data = await response.json();
+
+				// Actualizar badge
+				if (data.count > 0) {
+					notificationBadge.textContent = data.count;
+					notificationBadge.style.display = 'block';
+				} else {
+					notificationBadge.style.display = 'none';
+				}
+
+				// Renderizar notificaciones
+				if (data.notifications.length === 0) {
+					notificationList.innerHTML = `
+						<div class="p-4 text-center text-gray-500 text-sm">
+							<svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+							</svg>
+							No tienes notificaciones nuevas
+						</div>
+					`;
+				} else {
+					notificationList.innerHTML = data.notifications.map(notif => {
+						const date = new Date(notif.created_at);
+						const timeAgo = getTimeAgo(date);
+						return `
+							<div class="notification-item" data-id="${notif.id}" data-ticket="${notif.ticket_reference || ''}">
+								<div class="flex items-start gap-3">
+									<div class="flex-1">
+										<h4 class="text-sm font-semibold text-gray-900 mb-1">${notif.title}</h4>
+										<p class="text-sm text-gray-600">${notif.message}</p>
+										<p class="text-xs text-gray-400 mt-1">${timeAgo}</p>
+									</div>
+								</div>
+							</div>
+						`;
+					}).join('');
+
+					// Agregar event listeners a las notificaciones
+					document.querySelectorAll('.notification-item').forEach(item => {
+						item.addEventListener('click', function() {
+							const notifId = this.getAttribute('data-id');
+							const ticketRef = this.getAttribute('data-ticket');
+							markAsRead(notifId);
+							if (ticketRef) {
+								window.location.href = `/admin/tickets/${ticketRef}`;
+							}
+						});
+					});
+				}
+			} catch (err) {
+				console.error('Error cargando notificaciones:', err);
+				notificationList.innerHTML = `
+					<div class="p-4 text-center text-red-500 text-sm">
+						Error al cargar notificaciones
+					</div>
+				`;
+			}
+		}
+
+		async function markAsRead(notificationId) {
+			try {
+				await fetch(`/admin/notifications/${notificationId}/read`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' }
+				});
+				loadNotifications();
+			} catch (err) {
+				console.error('Error marcando notificación:', err);
+			}
+		}
+
+		async function markAllAsRead() {
+			try {
+				await fetch('/admin/notifications/read-all', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' }
+				});
+				loadNotifications();
+			} catch (err) {
+				console.error('Error marcando todas las notificaciones:', err);
+			}
+		}
+
+		function getTimeAgo(date) {
+			const seconds = Math.floor((new Date() - date) / 1000);
+			if (seconds < 60) return 'Hace un momento';
+			const minutes = Math.floor(seconds / 60);
+			if (minutes < 60) return `Hace ${minutes} minuto${minutes > 1 ? 's' : ''}`;
+			const hours = Math.floor(minutes / 60);
+			if (hours < 24) return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
+			const days = Math.floor(hours / 24);
+			if (days < 7) return `Hace ${days} día${days > 1 ? 's' : ''}`;
+			const weeks = Math.floor(days / 7);
+			return `Hace ${weeks} semana${weeks > 1 ? 's' : ''}`;
+		}
+	</script>
 </body>
 </html>
