@@ -5,65 +5,367 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title><%= title %></title>
 	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		* { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+		body { background: #F7F8FA; }
+		.input-field { 
+			transition: all 0.2s ease;
+			border: 1.5px solid #E2E8F0;
+		}
+		.input-field:hover { 
+			border-color: #CBD5E1;
+		}
+		.input-field:focus { 
+			outline: none;
+			border-color: #3B82F6;
+			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+		}
+		.select-field {
+			appearance: none;
+			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+			background-position: right 0.75rem center;
+			background-repeat: no-repeat;
+			background-size: 1.25em 1.25em;
+			padding-right: 2.5rem;
+		}
+		.btn-primary {
+			background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+			transition: all 0.2s ease;
+		}
+		.btn-primary:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+		}
+		.badge {
+			display: inline-flex;
+			align-items: center;
+			padding: 0.375rem 0.75rem;
+			border-radius: 9999px;
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.025em;
+		}
+		.badge-pendiente { background: #FEF3C7; color: #92400E; }
+		.badge-proceso { background: #DBEAFE; color: #1E40AF; }
+		.badge-resuelto { background: #D1FAE5; color: #065F46; }
+		.badge-cerrado { background: #F3F4F6; color: #374151; }
+		.priority-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			display: inline-block;
+			margin-right: 0.5rem;
+		}
+		.priority-baja { background: #10B981; }
+		.priority-media { background: #F59E0B; }
+		.priority-alta { background: #EF4444; }
+		.priority-critica { background: #DC2626; animation: pulse 2s infinite; }
+		@keyframes pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.5; }
+		}
+		.table-row {
+			transition: all 0.2s ease;
+		}
+		.table-row:hover {
+			background: #F9FAFB;
+			transform: scale(1.001);
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+		}
+		.filter-card {
+			background: white;
+			border-radius: 12px;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			border: 1px solid #E5E7EB;
+		}
+		.empty-state {
+			text-align: center;
+			padding: 4rem 2rem;
+		}
+		.ticket-link {
+			color: #3B82F6;
+			font-weight: 600;
+			text-decoration: none;
+			transition: all 0.2s ease;
+		}
+		.ticket-link:hover {
+			color: #2563EB;
+			text-decoration: underline;
+		}
+	</style>
 </head>
-<body class="bg-slate-50 text-slate-900">
-	<header class="bg-slate-900 text-white">
-		<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-			<h1 class="text-lg font-semibold">Listado de Tickets</h1>
-			<nav class="space-x-4 text-sm">
-				<a class="text-sky-200 hover:text-white" href="/">Nuevo Ticket</a>
-				<a class="text-sky-200 hover:text-white" href="/admin/login">Admin</a>
-			</nav>
+<body>
+	<!-- Header Minimalista -->
+	<header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div class="flex items-center justify-between h-16">
+				<div class="flex items-center gap-3">
+					<svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+					</svg>
+					<h1 class="text-xl font-semibold text-gray-900">Listado de Tickets</h1>
+				</div>
+				<nav class="flex items-center gap-2">
+					<a href="/" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-md">
+						<span class="flex items-center gap-2">
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+							</svg>
+							Nuevo Ticket
+						</span>
+					</a>
+					<a href="/admin/login" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition">
+						Admin
+					</a>
+				</nav>
+			</div>
 		</div>
 	</header>
-	<main class="max-w-6xl mx-auto px-4 py-8">
-		<form method="get" class="bg-white shadow rounded-lg p-4 grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
-			<select class="rounded-md border border-slate-300 px-3 py-2" name="status">
-				<option value="">Estado</option>
-				<% ['Pendiente','En Proceso','Resuelto','Cerrado'].forEach(s=>{ %>
-					<option value="<%= s %>" <%= (filters.status||'')===s ? 'selected' : '' %>><%= s %></option>
-				<% }) %>
-			</select>
-			<select class="rounded-md border border-slate-300 px-3 py-2" name="priority">
-				<option value="">Prioridad</option>
-				<% ['Baja – No es urgente','Media – Puede esperar unas horas','Alta – Necesito ayuda pronto','Crítica – Bloquea mi trabajo'].forEach(p=>{ %>
-					<option value="<%= p %>" <%= (filters.priority||'')===p ? 'selected' : '' %>><%= p %></option>
-				<% }) %>
-			</select>
-			<select class="rounded-md border border-slate-300 px-3 py-2" name="support_type">
-				<option value="">Tipo de Soporte</option>
-				<% ['Hardware','Software','Red e Internet','Acceso y Permisos','Correo Electrónico','Otro'].forEach(t=>{ %>
-					<option value="<%= t %>" <%= (filters.support_type||'')===t ? 'selected' : '' %>><%= t %></option>
-				<% }) %>
-			</select>
-			<button class="rounded-md bg-sky-600 px-4 py-2 text-white hover:bg-sky-700" type="submit">Filtrar</button>
-		</form>
 
-		<div class="overflow-hidden rounded-lg shadow">
-			<table class="min-w-full divide-y divide-slate-200 bg-white">
-				<thead class="bg-slate-50">
-					<tr>
-						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Referencia</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Solicitante</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Tipo</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Prioridad</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Estado</th>
-						<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">Creado</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-slate-200">
-					<% tickets.forEach(t => { %>
-						<tr class="hover:bg-slate-50">
-							<td class="px-4 py-3"><a class="text-sky-700 hover:underline" href="/tickets/<%= t.reference %>"><%= t.reference %></a></td>
-							<td class="px-4 py-3"><%= t.requester_name %></td>
-							<td class="px-4 py-3"><%= t.support_type %></td>
-							<td class="px-4 py-3"><%= t.priority %></td>
-							<td class="px-4 py-3"><%= t.status %></td>
-							<td class="px-4 py-3"><%= new Date(t.created_at).toLocaleString() %></td>
-						</tr>
-					<% }) %>
-				</tbody>
-			</table>
+	<!-- Main Content -->
+	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		<!-- Filtros -->
+		<div class="filter-card p-6 mb-6">
+			<div class="flex items-center gap-2 mb-4">
+				<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+				</svg>
+				<h2 class="text-lg font-semibold text-gray-900">Filtros de Búsqueda</h2>
+			</div>
+			
+			<form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+				<!-- Estado -->
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+					<select name="status" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+						<option value="">Todos los estados</option>
+						<% ['Pendiente','En Proceso','Resuelto','Cerrado'].forEach(s=>{ %>
+							<option value="<%= s %>" <%= (filters.status||'')===s ? 'selected' : '' %>><%= s %></option>
+						<% }) %>
+					</select>
+				</div>
+
+				<!-- Prioridad -->
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
+					<select name="priority" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+						<option value="">Todas las prioridades</option>
+						<% ['Baja – No es urgente','Media – Puede esperar unas horas','Alta – Necesito ayuda pronto','Crítica – Bloquea mi trabajo'].forEach(p=>{ %>
+							<option value="<%= p %>" <%= (filters.priority||'')===p ? 'selected' : '' %>><%= p %></option>
+						<% }) %>
+					</select>
+				</div>
+
+				<!-- Tipo de Soporte -->
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Soporte</label>
+					<select name="support_type" class="input-field select-field w-full px-4 py-2.5 rounded-lg bg-white text-gray-900">
+						<option value="">Todos los tipos</option>
+						<% ['Hardware','Software','Red e Internet','Acceso y Permisos','Correo Electrónico','Otro'].forEach(t=>{ %>
+							<option value="<%= t %>" <%= (filters.support_type||'')===t ? 'selected' : '' %>><%= t %></option>
+						<% }) %>
+					</select>
+				</div>
+
+				<!-- Botón Filtrar -->
+				<div class="flex items-end">
+					<button type="submit" class="btn-primary w-full px-6 py-2.5 rounded-lg text-white font-semibold shadow-lg flex items-center justify-center gap-2">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+						</svg>
+						Filtrar
+					</button>
+				</div>
+			</form>
+		</div>
+
+		<!-- Estadísticas Rápidas -->
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+			<div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-sm font-medium text-gray-600">Total Tickets</p>
+						<p class="text-2xl font-bold text-gray-900 mt-1"><%= tickets.length %></p>
+					</div>
+					<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+						<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-sm font-medium text-gray-600">Pendientes</p>
+						<p class="text-2xl font-bold text-yellow-600 mt-1"><%= tickets.filter(t => t.status === 'Pendiente').length %></p>
+					</div>
+					<div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+						<svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-sm font-medium text-gray-600">En Proceso</p>
+						<p class="text-2xl font-bold text-blue-600 mt-1"><%= tickets.filter(t => t.status === 'En Proceso').length %></p>
+					</div>
+					<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+						<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-sm font-medium text-gray-600">Resueltos</p>
+						<p class="text-2xl font-bold text-green-600 mt-1"><%= tickets.filter(t => t.status === 'Resuelto').length %></p>
+					</div>
+					<div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+						<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Tabla de Tickets -->
+		<div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+			<div class="overflow-x-auto">
+				<% if (tickets.length === 0) { %>
+					<!-- Estado Vacío -->
+					<div class="empty-state">
+						<svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+						</svg>
+						<h3 class="mt-4 text-lg font-semibold text-gray-900">No hay tickets disponibles</h3>
+						<p class="mt-2 text-sm text-gray-600">No se encontraron tickets con los filtros seleccionados.</p>
+						<a href="/" class="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+							</svg>
+							Crear Primer Ticket
+						</a>
+					</div>
+				<% } else { %>
+					<table class="min-w-full divide-y divide-gray-200">
+						<thead class="bg-gray-50">
+							<tr>
+								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+									Referencia
+								</th>
+								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+									Solicitante
+								</th>
+								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+									Tipo
+								</th>
+								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+									Prioridad
+								</th>
+								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+									Estado
+								</th>
+								<th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+									Fecha Creación
+								</th>
+							</tr>
+						</thead>
+						<tbody class="bg-white divide-y divide-gray-200">
+							<% tickets.forEach(t => { 
+								let statusClass = 'badge-pendiente';
+								if (t.status === 'En Proceso') statusClass = 'badge-proceso';
+								if (t.status === 'Resuelto') statusClass = 'badge-resuelto';
+								if (t.status === 'Cerrado') statusClass = 'badge-cerrado';
+								
+								let priorityClass = 'priority-baja';
+								if (t.priority.includes('Media')) priorityClass = 'priority-media';
+								if (t.priority.includes('Alta')) priorityClass = 'priority-alta';
+								if (t.priority.includes('Crítica')) priorityClass = 'priority-critica';
+							%>
+								<tr class="table-row">
+									<td class="px-6 py-4 whitespace-nowrap">
+										<a href="/tickets/<%= t.reference %>" class="ticket-link flex items-center gap-2">
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+											</svg>
+											<%= t.reference %>
+										</a>
+									</td>
+									<td class="px-6 py-4">
+										<div class="flex items-center">
+											<div class="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+												<%= t.requester_name.charAt(0).toUpperCase() %>
+											</div>
+											<div class="ml-3">
+												<p class="text-sm font-medium text-gray-900"><%= t.requester_name %></p>
+												<p class="text-xs text-gray-500"><%= t.department || 'Sin departamento' %></p>
+											</div>
+										</div>
+									</td>
+									<td class="px-6 py-4">
+										<div class="flex items-center gap-2">
+											<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+											</svg>
+											<span class="text-sm text-gray-900"><%= t.support_type %></span>
+										</div>
+									</td>
+									<td class="px-6 py-4">
+										<div class="flex items-center">
+											<span class="priority-dot <%= priorityClass %>"></span>
+											<span class="text-sm text-gray-900">
+												<% if (t.priority.includes('Baja')) { %>Baja
+												<% } else if (t.priority.includes('Media')) { %>Media
+												<% } else if (t.priority.includes('Alta') && !t.priority.includes('Crítica')) { %>Alta
+												<% } else { %>Crítica<% } %>
+											</span>
+										</div>
+									</td>
+									<td class="px-6 py-4">
+										<span class="badge <%= statusClass %>">
+											<%= t.status %>
+										</span>
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										<div class="text-sm text-gray-900">
+											<%= new Date(t.created_at).toLocaleDateString('es-ES', { 
+												year: 'numeric', 
+												month: 'short', 
+												day: 'numeric' 
+											}) %>
+										</div>
+										<div class="text-xs text-gray-500">
+											<%= new Date(t.created_at).toLocaleTimeString('es-ES', { 
+												hour: '2-digit', 
+												minute: '2-digit' 
+											}) %>
+										</div>
+									</td>
+								</tr>
+							<% }) %>
+						</tbody>
+					</table>
+				<% } %>
+			</div>
+		</div>
+
+		<!-- Info Footer -->
+		<div class="mt-6 text-center text-sm text-gray-500">
+			Mostrando <%= tickets.length %> ticket<%= tickets.length !== 1 ? 's' : '' %>
 		</div>
 	</main>
 </body>
