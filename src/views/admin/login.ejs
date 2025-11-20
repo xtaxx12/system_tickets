@@ -5,32 +5,346 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title><%= title %></title>
 	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		* { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+		body { 
+			background: linear-gradient(135deg, #F0F4F8 0%, #E2E8F0 100%);
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			position: relative;
+			overflow: hidden;
+		}
+		/* Decorative Background Elements */
+		body::before {
+			content: '';
+			position: absolute;
+			top: -50%;
+			right: -20%;
+			width: 800px;
+			height: 800px;
+			background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+			border-radius: 50%;
+			pointer-events: none;
+		}
+		body::after {
+			content: '';
+			position: absolute;
+			bottom: -40%;
+			left: -15%;
+			width: 600px;
+			height: 600px;
+			background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+			border-radius: 50%;
+			pointer-events: none;
+		}
+		.login-card {
+			background: #FFFFFF;
+			box-shadow: 
+				0 1px 3px rgba(0, 0, 0, 0.05),
+				0 10px 40px rgba(0, 0, 0, 0.08),
+				0 0 0 1px rgba(0, 0, 0, 0.02);
+			position: relative;
+			z-index: 10;
+		}
+		.input-field { 
+			transition: all 0.2s ease;
+			border: 1.5px solid #E2E8F0;
+			background: #F9FAFB;
+		}
+		.input-field:hover { 
+			border-color: #CBD5E1;
+			background: #FFFFFF;
+		}
+		.input-field:focus { 
+			outline: none;
+			border-color: #3B82F6;
+			background: #FFFFFF;
+			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+		}
+		.btn-primary {
+			background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+			transition: all 0.2s ease;
+		}
+		.btn-primary:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+		}
+		.btn-primary:active {
+			transform: translateY(0);
+		}
+		.icon-wrapper {
+			background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+			width: 72px;
+			height: 72px;
+			border-radius: 20px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin: 0 auto;
+			box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+			border: 1px solid rgba(59, 130, 246, 0.1);
+		}
+		.input-icon {
+			position: absolute;
+			left: 1rem;
+			top: 50%;
+			transform: translateY(-50%);
+			color: #9CA3AF;
+			pointer-events: none;
+			transition: color 0.2s ease;
+		}
+		.input-field:focus ~ .input-icon {
+			color: #3B82F6;
+		}
+		.input-with-icon {
+			padding-left: 2.75rem;
+		}
+		.show-password-btn {
+			position: absolute;
+			right: 1rem;
+			top: 50%;
+			transform: translateY(-50%);
+			color: #9CA3AF;
+			cursor: pointer;
+			transition: color 0.2s ease;
+		}
+		.show-password-btn:hover {
+			color: #3B82F6;
+		}
+		.nav-link {
+			color: #64748B;
+			text-decoration: none;
+			padding: 0.5rem 1rem;
+			border-radius: 0.5rem;
+			transition: all 0.2s ease;
+			background: #FFFFFF;
+			border: 1px solid #E2E8F0;
+			font-weight: 500;
+		}
+		.nav-link:hover {
+			background: #F8FAFC;
+			color: #1E293B;
+			border-color: #CBD5E1;
+		}
+		.brand-logo {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			padding: 0.75rem 1.25rem;
+			background: #FFFFFF;
+			border-radius: 0.75rem;
+			border: 1px solid #E2E8F0;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+		}
+		.divider {
+			position: relative;
+			text-align: center;
+			margin: 1.5rem 0;
+		}
+		.divider::before {
+			content: '';
+			position: absolute;
+			top: 50%;
+			left: 0;
+			right: 0;
+			height: 1px;
+			background: #E2E8F0;
+		}
+		.divider span {
+			position: relative;
+			background: white;
+			padding: 0 1rem;
+			color: #94A3B8;
+			font-size: 0.875rem;
+		}
+		.security-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.5rem 1rem;
+			background: #F0F9FF;
+			border: 1px solid #BAE6FD;
+			border-radius: 9999px;
+			color: #0369A1;
+			font-size: 0.8125rem;
+			font-weight: 500;
+		}
+		@keyframes fadeInUp {
+			from {
+				opacity: 0;
+				transform: translateY(20px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+		.animate-fade-in-up {
+			animation: fadeInUp 0.6s ease-out;
+		}
+	</style>
 </head>
-<body class="bg-slate-50 text-slate-900">
-	<header class="bg-slate-900 text-white">
-		<div class="max-w-xl mx-auto px-4 py-4 flex items-center justify-between">
-			<h1 class="text-lg font-semibold">Acceso Administrador</h1>
-			<nav class="space-x-4 text-sm">
-				<a class="text-sky-200 hover:text-white" href="/">Nuevo Ticket</a>
-				<a class="text-sky-200 hover:text-white" href="/tickets">Listado</a>
-			</nav>
+<body>
+	<!-- Header -->
+	<header class="fixed top-0 left-0 right-0 z-50">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+			<div class="flex items-center justify-between">
+				<div class="brand-logo">
+					<svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+					</svg>
+					<span class="text-lg font-bold text-gray-900">Admin Panel</span>
+				</div>
+				<nav class="flex items-center gap-2">
+					<a href="/" class="nav-link text-sm">
+						Nuevo Ticket
+					</a>
+					<a href="/tickets" class="nav-link text-sm">
+						Listado
+					</a>
+				</nav>
+			</div>
 		</div>
 	</header>
-	<main class="max-w-xl mx-auto px-4 py-8">
-		<form action="/admin/login" method="post" class="bg-white shadow rounded-lg p-6 space-y-4">
-			<div>
-				<label class="block text-sm font-medium mb-1">Usuario</label>
-				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="text" name="username" required />
+
+	<!-- Main Content -->
+	<main class="w-full max-w-md px-4 animate-fade-in-up">
+		<div class="login-card rounded-3xl p-8 sm:p-10">
+			<!-- Icon -->
+			<div class="icon-wrapper mb-6">
+				<svg class="w-9 h-9 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+				</svg>
 			</div>
-			<div>
-				<label class="block text-sm font-medium mb-1">Contraseña</label>
-				<input class="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" type="password" name="password" required />
+
+			<!-- Title -->
+			<div class="text-center mb-8">
+				<h1 class="text-3xl font-bold text-gray-900 mb-2">Bienvenido de nuevo</h1>
+				<p class="text-gray-600 text-sm">Ingresa tus credenciales para acceder al panel de administración</p>
 			</div>
-			<% if (error) { %><p class="text-sm text-red-600"><%= error %></p><% } %>
-			<div class="pt-2">
-				<button class="rounded-md bg-sky-600 px-4 py-2 text-white hover:bg-sky-700" type="submit">Entrar</button>
+
+			<!-- Form -->
+			<form action="/admin/login" method="post" class="space-y-5">
+				<!-- Usuario -->
+				<div>
+					<label class="block text-sm font-semibold text-gray-700 mb-2">
+						Usuario
+					</label>
+					<div class="relative">
+						<input 
+							type="text" 
+							name="username" 
+							required 
+							class="input-field input-with-icon w-full px-4 py-3.5 rounded-xl text-gray-900 placeholder-gray-400"
+							placeholder="Ingresa tu usuario"
+							autocomplete="username"
+						/>
+						<div class="input-icon">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+							</svg>
+						</div>
+					</div>
+				</div>
+
+				<!-- Contraseña -->
+				<div>
+					<label class="block text-sm font-semibold text-gray-700 mb-2">
+						Contraseña
+					</label>
+					<div class="relative">
+						<input 
+							type="password" 
+							name="password" 
+							required 
+							id="password-input"
+							class="input-field input-with-icon w-full px-4 py-3.5 rounded-xl text-gray-900 placeholder-gray-400"
+							placeholder="Ingresa tu contraseña"
+							autocomplete="current-password"
+							style="padding-right: 3rem;"
+						/>
+						<div class="input-icon">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+							</svg>
+						</div>
+						<button type="button" class="show-password-btn" id="toggle-password" tabindex="-1">
+							<svg class="w-5 h-5" id="eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+							</svg>
+						</button>
+					</div>
+				</div>
+
+				<!-- Error Message -->
+				<% if (error) { %>
+					<div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+						<svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+						</svg>
+						<div>
+							<p class="text-sm font-semibold text-red-900">Error de autenticación</p>
+							<p class="text-sm text-red-700 mt-0.5"><%= error %></p>
+						</div>
+					</div>
+				<% } %>
+
+				<!-- Submit Button -->
+				<button type="submit" class="btn-primary w-full py-4 rounded-xl text-white font-semibold text-base shadow-lg flex items-center justify-center gap-2 mt-6">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+					</svg>
+					Iniciar Sesión
+				</button>
+			</form>
+
+			<!-- Divider -->
+			<div class="divider">
+				<span>Información de seguridad</span>
 			</div>
-		</form>
+
+			<!-- Security Info -->
+			<div class="flex items-center justify-center">
+				<div class="security-badge">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+					</svg>
+					<span>Conexión segura y cifrada</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Additional Info -->
+		<div class="mt-6 text-center">
+			<p class="text-sm text-gray-600">
+				¿Necesitas ayuda? 
+				<span class="text-blue-600 font-medium">Contacta al administrador del sistema</span>
+			</p>
+		</div>
 	</main>
+
+	<!-- Script para mostrar/ocultar contraseña -->
+	<script>
+		const togglePassword = document.getElementById('toggle-password');
+		const passwordInput = document.getElementById('password-input');
+		const eyeIcon = document.getElementById('eye-icon');
+
+		togglePassword.addEventListener('click', function() {
+			const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+			passwordInput.setAttribute('type', type);
+			
+			if (type === 'text') {
+				eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>';
+			} else {
+				eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
+			}
+		});
+	</script>
 </body>
 </html>
