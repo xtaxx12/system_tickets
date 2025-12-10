@@ -55,24 +55,17 @@ function asyncHandler(fn) {
  * Logger de errores
  */
 function errorLogger(err, req, res, next) {
-	const logData = {
-		timestamp: new Date().toISOString(),
-		method: req.method,
-		url: req.originalUrl,
-		ip: req.ip,
-		userId: req.session?.user?.id,
-		error: {
-			name: err.name,
+	// Usar logger si está disponible
+	try {
+		const logger = require('../utils/logger');
+		logger.logError(err, req);
+	} catch {
+		// Fallback a console si logger no está disponible
+		console.error('❌ ERROR:', {
 			message: err.message,
-			statusCode: err.statusCode,
-			stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-		},
-	};
-
-	if (err.statusCode >= 500 || !err.isOperational) {
-		console.error('❌ ERROR:', JSON.stringify(logData, null, 2));
-	} else {
-		console.warn('⚠️ Warning:', logData.error.message);
+			stack: err.stack,
+			url: req.originalUrl,
+		});
 	}
 
 	next(err);
@@ -122,12 +115,22 @@ function viewErrorHandler(err, req, res, next) {
  */
 function setupUncaughtHandlers() {
 	process.on('uncaughtException', (err) => {
-		console.error('❌ UNCAUGHT EXCEPTION:', err);
+		try {
+			const logger = require('../utils/logger');
+			logger.error('Uncaught Exception', { error: err.message, stack: err.stack });
+		} catch {
+			console.error('❌ UNCAUGHT EXCEPTION:', err);
+		}
 		process.exit(1);
 	});
 
 	process.on('unhandledRejection', (reason, promise) => {
-		console.error('❌ UNHANDLED REJECTION:', reason);
+		try {
+			const logger = require('../utils/logger');
+			logger.error('Unhandled Rejection', { reason: String(reason) });
+		} catch {
+			console.error('❌ UNHANDLED REJECTION:', reason);
+		}
 	});
 }
 
