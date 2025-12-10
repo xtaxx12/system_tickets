@@ -1,167 +1,61 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
-const { getPool } = require('../db');
-const { STATUSES, listTickets, findByReference, updateStatusById, countTickets, getTicketStats, getAllTechnicians, assignTicket } = require('../models/tickets');
+const { STATUSES } = require('../models/tickets');
+const ticketService = require('../services/ticketService');
+const userService = require('../services/userService');
+const roleService = require('../services/roleService');
+const emailService = require('../services/emailService');
+const { getCommentsByTicketId } = require('../models/comments');
+
+// Middlewares
+const { requireAuth, requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/auth');
+const { loginLimiter, commentLimiter } = require('../middleware/security');
+const { asyncHandler, ValidationError } = require('../middleware/errorHandler');
+
+// Validadores
 const {
-	createComment,
-	getCommentsByTicketId,
-} = require('../models/comments');
-const {
-	notifyTicketAssigned,
-	notifyNewComment,
-	notifyStatusChange,
-	getUnreadNotifications,
-	getUnreadCount,
-	markAsRead,
-	markAllAsRead,
-} = require('../models/notifications');
-const {
-	userHasPermission,
-	userHasAnyPermission,
-	getUserPermissions
-} = require('../models/permissions');
+	validate,
+	loginSchema,
+	createUserSchema,
+	updatePasswordSchema,
+	updateUsernameSchema,
+	createCommentSchema,
+	createRoleSchema,
+	updateRoleSchema,
+	updateStatusSchema,
+} = require('../validators');
 
 const router = express.Router();
 
-function getTransport() {
-	if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
-	return nodemailer.createTransport({
-		host: process.env.SMTP_HOST,
-		port: Number(process.env.SMTP_PORT || 587),
-		secure: String(process.env.SMTP_SECURE || 'false') === 'true',
-		auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-	});
-}
-
-// Middleware para verificar autenticación básica
-function requireAuth(req, res, next) {
-	if (req.session && req.session.user) return next();
-	return res.redirect('/admin/login');
-}
-
-// Middleware para roles con permisos administrativos (admin, supervisor, tecnico)
-function requireAdmin(req, res, next) {
-	if (req.session && req.session.user && ['admin', 'supervisor', 'tecnico'].includes(req.session.user.role)) {
-		return next();
-	}
-	return res.redirect('/admin/login');
-}
-
-// Middleware solo para admin
-function requireSuperAdmin(req, res, next) {
-	if (req.session && req.session.user && req.session.user.role === 'admin') {
-		return next();
-	}
-	return res.status(403).render('admin/error', {
-		title: 'Acceso Denegado',
-		message: 'No tienes permisos para acceder a esta sección',
-		user: req.session.user
-	});
-}
-
-// Middleware para admin y supervisor
-function requireSupervisor(req, res, next) {
-	if (req.session && req.session.user && ['admin', 'supervisor'].includes(req.session.user.role)) {
-		return next();
-	}
-	return res.status(403).render('admin/error', {
-		title: 'Acceso Denegado',
-		message: 'Solo administradores y supervisores pueden acceder a esta sección',
-		user: req.session.user
-	});
-}
-
 // ============================================================================
-// Middlewares basados en permisos granulares
+// LOGIN / LOGOUT
 // ============================================================================
-
-/**
- * Middleware genérico para verificar un permiso específico
- */
-function requirePermission(permissionName) {
-	return async (req, res, next) => {
-		if (!req.session || !req.session.user) {
-			return res.redirect('/admin/login');
-		}
-
-		try {
-			const hasPermission = await userHasPermission(req.session.user.id, permissionName);
-			if (hasPermission) {
-				return next();
-			}
-
-			return res.status(403).render('admin/error', {
-				title: 'Acceso Denegado',
-				message: 'No tienes permisos suficientes para realizar esta acción',
-				user: req.session.user
-			});
-		} catch (err) {
-			console.error('Error verificando permisos:', err);
-			return res.status(500).send('Error al verificar permisos');
-		}
-	};
-}
-
-/**
- * Middleware para verificar si el usuario tiene alguno de los permisos especificados
- */
-function requireAnyPermission(...permissionNames) {
-	return async (req, res, next) => {
-		if (!req.session || !req.session.user) {
-			return res.redirect('/admin/login');
-		}
-
-		try {
-			const hasPermission = await userHasAnyPermission(req.session.user.id, permissionNames);
-			if (hasPermission) {
-				return next();
-			}
-
-			return res.status(403).render('admin/error', {
-				title: 'Acceso Denegado',
-				message: 'No tienes permisos suficientes para realizar esta acción',
-				user: req.session.user
-			});
-		} catch (err) {
-			console.error('Error verificando permisos:', err);
-			return res.status(500).send('Error al verificar permisos');
-		}
-	};
-}
-
-/**
- * Middleware para agregar permisos del usuario a la solicitud
- */
-async function addUserPermissions(req, res, next) {
-	if (req.session && req.session.user) {
-		try {
-			req.userPermissions = await getUserPermissions(req.session.user.id);
-		} catch (err) {
-			console.error('Error obteniendo permisos:', err);
-			req.userPermissions = [];
-		}
-	} else {
-		req.userPermissions = [];
-	}
-	next();
-}
 
 router.get('/login', (req, res) => {
 	res.render('admin/login', { title: 'Acceso Admin', error: null });
 });
 
-router.post('/login', async (req, res) => {
-	const { username, password } = req.body;
-	if (!username || !password) return res.render('admin/login', { title: 'Acceso Admin', error: 'Credenciales inválidas' });
-	const { rows } = await getPool().query('SELECT * FROM users WHERE username = $1', [username]);
-	const user = rows[0];
-	if (!user) return res.render('admin/login', { title: 'Acceso Admin', error: 'Usuario o contraseña incorrectos' });
-	const ok = bcrypt.compareSync(password, user.password_hash);
-	if (!ok) return res.render('admin/login', { title: 'Acceso Admin', error: 'Usuario o contraseña incorrectos' });
-	req.session.user = { id: user.id, username: user.username, role: user.role };
+router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
+	const validation = validate(loginSchema, req.body);
+	if (!validation.success) {
+		return res.render('admin/login', {
+			title: 'Acceso Admin',
+			error: 'Credenciales inválidas',
+		});
+	}
+
+	const { username, password } = validation.data;
+	const user = await userService.authenticate(username, password);
+
+	if (!user) {
+		return res.render('admin/login', {
+			title: 'Acceso Admin',
+			error: 'Usuario o contraseña incorrectos',
+		});
+	}
+
+	req.session.user = user;
 	res.redirect('/admin');
-});
+}));
 
 router.post('/logout', (req, res) => {
 	req.session.destroy(() => {
@@ -169,96 +63,88 @@ router.post('/logout', (req, res) => {
 	});
 });
 
-router.get('/perfil', requireAdmin, async (req, res) => {
-	const { rows } = await getPool().query('SELECT id, username, role FROM users WHERE id = $1', [req.session.user.id]);
-	const user = rows[0];
-	if (!user) return res.redirect('/admin/login');
+// ============================================================================
+// PERFIL DE USUARIO
+// ============================================================================
+
+router.get('/perfil', requireAdmin, asyncHandler(async (req, res) => {
+	const user = await userService.getUserById(req.session.user.id);
 	res.render('admin/perfil', {
 		title: 'Mi Perfil',
 		user,
 		error: null,
-		success: null
+		success: null,
 	});
-});
+}));
 
-router.post('/perfil', requireAdmin, async (req, res) => {
+router.post('/perfil', requireAdmin, asyncHandler(async (req, res) => {
 	const { username, current_password, new_password, confirm_password } = req.body;
 	const errors = [];
 	let success = null;
 
-	try {
-		const { rows } = await getPool().query('SELECT * FROM users WHERE id = $1', [req.session.user.id]);
-		const user = rows[0];
-		if (!user) return res.redirect('/admin/login');
+	const user = await userService.getUserById(req.session.user.id);
 
-		// Validar cambio de nombre de usuario
-		if (username && username !== user.username) {
-			if (username.length < 3) {
-				errors.push('El nombre de usuario debe tener al menos 3 caracteres');
-			} else {
-				// Verificar que el nuevo nombre no esté en uso
-				const { rows: existingUsers } = await getPool().query(
-					'SELECT id FROM users WHERE username = $1 AND id != $2',
-					[username, req.session.user.id]
-				);
-				if (existingUsers.length > 0) {
-					errors.push('El nombre de usuario ya está en uso');
+	// Cambio de username
+	if (username && username !== user.username) {
+		const usernameValidation = validate(updateUsernameSchema, { username });
+		if (!usernameValidation.success) {
+			errors.push(Object.values(usernameValidation.errors).join(', '));
+		} else {
+			try {
+				await userService.updateUsername(req.session.user.id, username);
+				req.session.user.username = username;
+				success = 'Nombre de usuario actualizado';
+			} catch (err) {
+				if (err instanceof ValidationError) {
+					errors.push(err.message);
 				} else {
-					await getPool().query('UPDATE users SET username = $1 WHERE id = $2', [username, req.session.user.id]);
-					req.session.user.username = username;
-					success = 'Nombre de usuario actualizado correctamente';
+					throw err;
 				}
 			}
 		}
+	}
 
-		// Validar cambio de contraseña
-		if (new_password || current_password) {
-			if (!current_password) {
-				errors.push('Debe ingresar su contraseña actual');
-			} else if (!bcrypt.compareSync(current_password, user.password_hash)) {
-				errors.push('La contraseña actual es incorrecta');
-			} else if (!new_password) {
-				errors.push('Debe ingresar una nueva contraseña');
-			} else if (new_password.length < 6) {
-				errors.push('La nueva contraseña debe tener al menos 6 caracteres');
-			} else if (new_password !== confirm_password) {
-				errors.push('Las contraseñas no coinciden');
-			} else {
-				const newHash = bcrypt.hashSync(new_password, 10);
-				await getPool().query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.session.user.id]);
-				success = success ? success + ' y contraseña actualizada' : 'Contraseña actualizada correctamente';
+	// Cambio de contraseña
+	if (new_password || current_password) {
+		const passwordValidation = validate(updatePasswordSchema, {
+			current_password,
+			new_password,
+			confirm_password,
+		});
+
+		if (!passwordValidation.success) {
+			errors.push(Object.values(passwordValidation.errors).join(', '));
+		} else {
+			try {
+				await userService.changePassword(req.session.user.id, current_password, new_password);
+				success = success ? success + ' y contraseña actualizada' : 'Contraseña actualizada';
+			} catch (err) {
+				if (err instanceof ValidationError) {
+					errors.push(err.message);
+				} else {
+					throw err;
+				}
 			}
 		}
-
-		// Obtener usuario actualizado
-		const { rows: updatedRows } = await getPool().query('SELECT id, username, role FROM users WHERE id = $1', [req.session.user.id]);
-		const updatedUser = updatedRows[0];
-
-		res.render('admin/perfil', {
-			title: 'Mi Perfil',
-			user: updatedUser,
-			error: errors.length > 0 ? errors.join('. ') : null,
-			success
-		});
-	} catch (err) {
-		console.error('Error actualizando perfil:', err);
-		const { rows } = await getPool().query('SELECT id, username, role FROM users WHERE id = $1', [req.session.user.id]);
-		res.render('admin/perfil', {
-			title: 'Mi Perfil',
-			user: rows[0],
-			error: 'Error al actualizar el perfil',
-			success: null
-		});
 	}
-});
 
-router.get('/', requireAdmin, async (req, res) => {
+	const updatedUser = await userService.getUserById(req.session.user.id);
+	res.render('admin/perfil', {
+		title: 'Mi Perfil',
+		user: updatedUser,
+		error: errors.length > 0 ? errors.join('. ') : null,
+		success,
+	});
+}));
+
+// ============================================================================
+// DASHBOARD / LISTA DE TICKETS
+// ============================================================================
+
+router.get('/', requireAdmin, asyncHandler(async (req, res) => {
 	const { status, priority, support_type, assigned_to, my_tickets, page = 1 } = req.query;
 	const currentPage = parseInt(page) || 1;
-	const perPage = 15;
-	const offset = (currentPage - 1) * perPage;
 
-	// Si my_tickets está activado, filtrar por el usuario actual
 	const filters = { status, priority, support_type };
 	if (my_tickets === 'true') {
 		filters.assigned_to = req.session.user.id;
@@ -266,22 +152,18 @@ router.get('/', requireAdmin, async (req, res) => {
 		filters.assigned_to = assigned_to;
 	}
 
-	const tickets = await listTickets(filters, perPage, offset);
-	const totalTickets = await countTickets(filters);
-	const totalPages = Math.ceil(totalTickets / perPage);
-	const technicians = await getAllTechnicians();
+	const { tickets, pagination } = await ticketService.listTickets(filters, currentPage, 15);
+	const technicians = await ticketService.getAllTechnicians();
 
-	// Obtener estadísticas totales (sin filtro de status)
-	const statsFilters = { priority, support_type };
-	const stats = await getTicketStats(statsFilters);
+	// Estadísticas generales
+	const stats = await ticketService.getStats({ priority, support_type });
 
-	// Obtener estadísticas personales del usuario
-	const myStatsFilters = { assigned_to: req.session.user.id, priority, support_type };
-	const myStats = await getTicketStats(myStatsFilters);
-	const myTotalTickets = await countTickets({ assigned_to: req.session.user.id });
+	// Estadísticas personales
+	const myStats = await ticketService.getStats({ assigned_to: req.session.user.id, priority, support_type });
+	const { pagination: myPagination } = await ticketService.listTickets({ assigned_to: req.session.user.id }, 1, 1);
 
-	// Obtener permisos del usuario
-	const userPermissions = await getUserPermissions(req.session.user.id);
+	// Permisos del usuario
+	const userPermissions = await roleService.getUserPermissions(req.session.user.id);
 
 	res.render('admin/list', {
 		title: 'Panel Admin',
@@ -292,27 +174,20 @@ router.get('/', requireAdmin, async (req, res) => {
 		userPermissions,
 		stats,
 		myStats,
-		myTotalTickets,
+		myTotalTickets: myPagination.totalTickets,
 		technicians,
-		pagination: {
-			currentPage,
-			totalPages,
-			totalTickets,
-			perPage,
-			hasNext: currentPage < totalPages,
-			hasPrev: currentPage > 1,
-		},
+		pagination,
 	});
-});
+}));
 
-router.get('/tickets/:reference', requireAdmin, async (req, res) => {
-	const ticket = await findByReference(req.params.reference);
-	if (!ticket) return res.status(404).send('Ticket no encontrado');
-	const comments = await getCommentsByTicketId(ticket.id, true);
-	const technicians = await getAllTechnicians();
+// ============================================================================
+// DETALLE DE TICKET
+// ============================================================================
 
-	// Obtener permisos del usuario
-	const userPermissions = await getUserPermissions(req.session.user.id);
+router.get('/tickets/:reference', requireAdmin, asyncHandler(async (req, res) => {
+	const { ticket, comments } = await ticketService.getTicketWithComments(req.params.reference, true);
+	const technicians = await ticketService.getAllTechnicians();
+	const userPermissions = await roleService.getUserPermissions(req.session.user.id);
 
 	res.render('admin/detail', {
 		title: `Admin - ${ticket.reference}`,
@@ -321,568 +196,248 @@ router.get('/tickets/:reference', requireAdmin, async (req, res) => {
 		STATUSES,
 		technicians,
 		user: req.session.user,
-		userPermissions
+		userPermissions,
 	});
-});
+}));
 
-router.post('/tickets/:reference/estado', requireAdmin, async (req, res) => {
-	const ticket = await findByReference(req.params.reference);
-	if (!ticket) return res.status(404).send('Ticket no encontrado');
-	const { status } = req.body;
-	try {
-		await updateStatusById(ticket.id, status);
+// ============================================================================
+// ACCIONES DE TICKET
+// ============================================================================
 
-		// Notificar sobre cambio de estado
-		try {
-			await notifyStatusChange(ticket.id, ticket.reference, status, ticket.assigned_to);
-		} catch (notifErr) {
-			console.error('Error al crear notificación de estado:', notifErr);
-		}
+router.post('/tickets/:reference/estado', requireAdmin, asyncHandler(async (req, res) => {
+	const ticket = await ticketService.getTicketByReference(req.params.reference);
 
-		res.redirect(`/admin/tickets/${ticket.reference}`);
-	} catch (e) {
-		res.status(400).send('Estado inválido');
+	const validation = validate(updateStatusSchema, req.body);
+	if (!validation.success) {
+		return res.status(400).send('Estado inválido');
 	}
-});
 
-router.post('/tickets/:reference/asignar', requirePermission('assign_tickets'), async (req, res) => {
-	const ticket = await findByReference(req.params.reference);
-	if (!ticket) return res.status(404).send('Ticket no encontrado');
-	const { technician_id } = req.body;
-	try {
+	await ticketService.updateTicketStatus(ticket.id, ticket.reference, validation.data.status, ticket.assigned_to);
+	res.redirect(`/admin/tickets/${ticket.reference}`);
+}));
+
+router.post('/tickets/:reference/asignar',
+	requirePermission('assign_tickets'),
+	asyncHandler(async (req, res) => {
+		const ticket = await ticketService.getTicketByReference(req.params.reference);
+		const { technician_id } = req.body;
 		const technicianIdValue = technician_id && technician_id !== '' ? parseInt(technician_id) : null;
-		await assignTicket(ticket.id, technicianIdValue);
 
-		// Notificar al técnico asignado
-		if (technicianIdValue) {
-			try {
-				await notifyTicketAssigned(ticket.id, technicianIdValue, ticket.reference);
-			} catch (notifErr) {
-				console.error('Error al crear notificación de asignación:', notifErr);
-			}
-		}
-
+		await ticketService.assignTicket(ticket.id, ticket.reference, technicianIdValue);
 		res.redirect(`/admin/tickets/${ticket.reference}`);
-	} catch (e) {
-		console.error('Error asignando ticket:', e);
-		res.status(500).send('Error al asignar ticket');
-	}
-});
+	})
+);
 
-// Gestión de Usuarios (solo admin)
-router.get('/usuarios', requireSuperAdmin, async (req, res) => {
-	try {
-		const { rows } = await getPool().query(`
-			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-			FROM users u
-			LEFT JOIN roles r ON u.role_id = r.id
-			ORDER BY u.created_at DESC
-		`);
-		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
+router.post('/tickets/:reference/comments',
+	requireAdmin,
+	commentLimiter,
+	asyncHandler(async (req, res) => {
+		const ticket = await ticketService.getTicketByReference(req.params.reference);
 
-		res.render('admin/usuarios', {
-			title: 'Gestión de Usuarios',
-			users: rows,
-			roles: roles,
-			user: req.session.user,
-			error: null,
-			success: null
-		});
-	} catch (err) {
-		console.error('Error obteniendo usuarios:', err);
-		res.status(500).send('Error al cargar usuarios');
-	}
-});
-
-router.post('/usuarios/crear', requireSuperAdmin, async (req, res) => {
-	const { username, password, role_id } = req.body;
-	const errors = [];
-
-	try {
-		if (!username || username.length < 3) errors.push('El nombre de usuario debe tener al menos 3 caracteres');
-		if (!password || password.length < 6) errors.push('La contraseña debe tener al menos 6 caracteres');
-		if (!role_id) errors.push('Debe seleccionar un rol');
-
-		if (errors.length === 0) {
-			const { rows: existing } = await getPool().query('SELECT id FROM users WHERE username = $1', [username]);
-			if (existing.length > 0) {
-				errors.push('El nombre de usuario ya existe');
-			}
+		const validation = validate(createCommentSchema, req.body);
+		if (!validation.success) {
+			return res.status(400).send('Datos inválidos');
 		}
 
-		if (errors.length > 0) {
-			const { rows } = await getPool().query(`
-				SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-				FROM users u
-				LEFT JOIN roles r ON u.role_id = r.id
-				ORDER BY u.created_at DESC
-			`);
-			const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
+		const { content, is_internal } = validation.data;
 
-			return res.render('admin/usuarios', {
-				title: 'Gestión de Usuarios',
-				users: rows,
-				roles: roles,
-				user: req.session.user,
-				error: errors.join('. '),
-				success: null
-			});
-		}
-
-		// Obtener el nombre del rol para mantener compatibilidad
-		const { rows: roleRows } = await getPool().query('SELECT name FROM roles WHERE id = $1', [role_id]);
-		const roleName = roleRows[0].name;
-
-		const hash = bcrypt.hashSync(password, 10);
-		await getPool().query(
-			'INSERT INTO users (username, password_hash, role, role_id) VALUES ($1, $2, $3, $4)',
-			[username, hash, roleName, role_id]
+		await ticketService.addComment(
+			ticket.id,
+			ticket.reference,
+			{
+				user_id: req.session.user.id,
+				author_name: req.session.user.username,
+				content,
+				is_internal,
+			},
+			ticket.assigned_to,
+			req.session.user.id
 		);
 
-		const { rows } = await getPool().query(`
-			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-			FROM users u
-			LEFT JOIN roles r ON u.role_id = r.id
-			ORDER BY u.created_at DESC
-		`);
-		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
+		// Notificar por email si no es interno
+		if (!is_internal) {
+			const prevComments = await getCommentsByTicketId(ticket.id, false);
+			const emails = [...new Set(prevComments.map(c => c.author_email).filter(Boolean))];
+			if (emails.length > 0) {
+				await emailService.sendCommentNotificationEmail(ticket, { content }, emails);
+			}
+		}
 
-		res.render('admin/usuarios', {
-			title: 'Gestión de Usuarios',
-			users: rows,
-			roles: roles,
-			user: req.session.user,
-			error: null,
-			success: `Usuario ${username} creado exitosamente`
-		});
-	} catch (err) {
-		console.error('Error creando usuario:', err);
-		const { rows } = await getPool().query(`
-			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-			FROM users u
-			LEFT JOIN roles r ON u.role_id = r.id
-			ORDER BY u.created_at DESC
-		`);
-		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
+		res.redirect(`/admin/tickets/${ticket.reference}`);
+	})
+);
 
-		res.render('admin/usuarios', {
-			title: 'Gestión de Usuarios',
-			users: rows,
-			roles: roles,
-			user: req.session.user,
-			error: 'Error al crear el usuario',
-			success: null
-		});
+
+// ============================================================================
+// GESTIÓN DE USUARIOS
+// ============================================================================
+
+async function renderUsuarios(res, req, error = null, success = null) {
+	const users = await userService.listUsers();
+	const roles = await roleService.getAllRolesWithUserCount();
+	res.render('admin/usuarios', {
+		title: 'Gestión de Usuarios',
+		users,
+		roles,
+		user: req.session.user,
+		error,
+		success,
+	});
+}
+
+router.get('/usuarios', requireSuperAdmin, asyncHandler(async (req, res) => {
+	await renderUsuarios(res, req);
+}));
+
+router.post('/usuarios/crear', requireSuperAdmin, asyncHandler(async (req, res) => {
+	const validation = validate(createUserSchema, req.body);
+
+	if (!validation.success) {
+		return await renderUsuarios(res, req, Object.values(validation.errors).join('. '));
 	}
-});
 
-router.post('/usuarios/:id/cambiar-rol', requireSuperAdmin, async (req, res) => {
+	try {
+		const { username } = await userService.createUser(validation.data);
+		await renderUsuarios(res, req, null, `Usuario ${username} creado exitosamente`);
+	} catch (err) {
+		if (err instanceof ValidationError) {
+			await renderUsuarios(res, req, err.message);
+		} else {
+			throw err;
+		}
+	}
+}));
+
+router.post('/usuarios/:id/cambiar-rol', requireSuperAdmin, asyncHandler(async (req, res) => {
 	const userId = parseInt(req.params.id);
 	const { role_id } = req.body;
 
 	try {
-		// No permitir cambiar el rol del propio usuario
-		if (userId === req.session.user.id) {
-			const { rows } = await getPool().query(`
-				SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-				FROM users u
-				LEFT JOIN roles r ON u.role_id = r.id
-				ORDER BY u.created_at DESC
-			`);
-			const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
-
-			return res.render('admin/usuarios', {
-				title: 'Gestión de Usuarios',
-				users: rows,
-				roles: roles,
-				user: req.session.user,
-				error: 'No puedes cambiar tu propio rol',
-				success: null
-			});
-		}
-
-		// Validar que el rol existe
-		const { rows: roleRows } = await getPool().query('SELECT id, name FROM roles WHERE id = $1', [role_id]);
-		if (roleRows.length === 0) {
-			throw new Error('Rol no válido');
-		}
-
-		const roleName = roleRows[0].name;
-
-		// Actualizar el rol del usuario
-		await getPool().query(
-			'UPDATE users SET role = $1, role_id = $2 WHERE id = $3',
-			[roleName, role_id, userId]
-		);
-
-		const { rows } = await getPool().query(`
-			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-			FROM users u
-			LEFT JOIN roles r ON u.role_id = r.id
-			ORDER BY u.created_at DESC
-		`);
-		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
-
-		res.render('admin/usuarios', {
-			title: 'Gestión de Usuarios',
-			users: rows,
-			roles: roles,
-			user: req.session.user,
-			error: null,
-			success: 'Rol actualizado exitosamente'
-		});
+		await userService.changeUserRole(userId, parseInt(role_id), req.session.user.id);
+		await renderUsuarios(res, req, null, 'Rol actualizado exitosamente');
 	} catch (err) {
-		console.error('Error cambiando rol:', err);
-		const { rows } = await getPool().query(`
-			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-			FROM users u
-			LEFT JOIN roles r ON u.role_id = r.id
-			ORDER BY u.created_at DESC
-		`);
-		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
-
-		res.render('admin/usuarios', {
-			title: 'Gestión de Usuarios',
-			users: rows,
-			roles: roles,
-			user: req.session.user,
-			error: 'Error al cambiar el rol del usuario',
-			success: null
-		});
+		await renderUsuarios(res, req, err.message);
 	}
-});
+}));
 
-router.post('/usuarios/:id/eliminar', requireSuperAdmin, async (req, res) => {
+router.post('/usuarios/:id/eliminar', requireSuperAdmin, asyncHandler(async (req, res) => {
 	const userId = parseInt(req.params.id);
 
 	try {
-		// No permitir eliminar al propio usuario
-		if (userId === req.session.user.id) {
-			const { rows } = await getPool().query(`
-				SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-				FROM users u
-				LEFT JOIN roles r ON u.role_id = r.id
-				ORDER BY u.created_at DESC
-			`);
-			const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
-
-			return res.render('admin/usuarios', {
-				title: 'Gestión de Usuarios',
-				users: rows,
-				roles: roles,
-				user: req.session.user,
-				error: 'No puedes eliminar tu propia cuenta',
-				success: null
-			});
-		}
-
-		await getPool().query('DELETE FROM users WHERE id = $1', [userId]);
-
-		const { rows } = await getPool().query(`
-			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-			FROM users u
-			LEFT JOIN roles r ON u.role_id = r.id
-			ORDER BY u.created_at DESC
-		`);
-		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
-
-		res.render('admin/usuarios', {
-			title: 'Gestión de Usuarios',
-			users: rows,
-			roles: roles,
-			user: req.session.user,
-			error: null,
-			success: 'Usuario eliminado exitosamente'
-		});
+		await userService.deleteUser(userId, req.session.user.id);
+		await renderUsuarios(res, req, null, 'Usuario eliminado exitosamente');
 	} catch (err) {
-		console.error('Error eliminando usuario:', err);
-		const { rows } = await getPool().query(`
-			SELECT u.id, u.username, u.role, u.role_id, u.created_at, r.display_name as role_display
-			FROM users u
-			LEFT JOIN roles r ON u.role_id = r.id
-			ORDER BY u.created_at DESC
-		`);
-		const { rows: roles } = await getPool().query('SELECT id, name, display_name FROM roles ORDER BY is_system DESC, name');
-
-		res.render('admin/usuarios', {
-			title: 'Gestión de Usuarios',
-			users: rows,
-			roles: roles,
-			user: req.session.user,
-			error: 'Error al eliminar el usuario. Puede que tenga tickets asignados.',
-			success: null
-		});
+		await renderUsuarios(res, req, err.message);
 	}
-});
-
-router.post('/tickets/:reference/comments', requireAdmin, async (req, res) => {
-	try {
-		const ticket = await findByReference(req.params.reference);
-		if (!ticket) return res.status(404).send('Ticket no encontrado');
-
-		const { content, is_internal } = req.body;
-		if (!content) {
-			return res.status(400).send('El contenido es requerido');
-		}
-
-		const isInternal = is_internal === 'true' || is_internal === true;
-
-		await createComment({
-			ticket_id: ticket.id,
-			user_id: req.session.user.id,
-			author_name: req.session.user.username,
-			content,
-			is_internal: isInternal,
-		});
-
-		// Notificar al técnico asignado sobre el nuevo comentario (si no es interno y no es él quien comenta)
-		if (!isInternal && ticket.assigned_to) {
-			try {
-				await notifyNewComment(ticket.id, ticket.reference, ticket.assigned_to, req.session.user.id);
-			} catch (notifErr) {
-				console.error('Error al crear notificación de comentario:', notifErr);
-			}
-		}
-
-		// Notificación por email si no es comentario interno
-		if (!isInternal) {
-			const transporter = getTransport();
-			if (transporter) {
-				// Buscar emails de comentarios previos del ticket
-				const prevComments = await getCommentsByTicketId(ticket.id, false);
-				const emails = [...new Set(prevComments.map(c => c.author_email).filter(e => e))];
-
-				if (emails.length > 0) {
-					const baseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-					const ticketUrl = `${baseUrl}/tickets/${ticket.reference}`;
-
-					try {
-						await transporter.sendMail({
-							from: process.env.SMTP_FROM || 'soporte@example.com',
-							to: emails.join(','),
-							subject: `Respuesta en ticket ${ticket.reference}`,
-							html: `
-								<p>Hola,</p>
-								<p>El equipo de soporte ha respondido en el ticket <b>${ticket.reference}</b>.</p>
-								<p><b>Respuesta:</b></p>
-								<p>${content}</p>
-								<p><a href="${ticketUrl}">Ver ticket completo</a></p>
-							`,
-						});
-					} catch (emailErr) {
-						console.error('Error enviando email:', emailErr);
-					}
-				}
-			}
-		}
-
-		res.redirect(`/admin/tickets/${ticket.reference}`);
-	} catch (err) {
-		console.error(err);
-		res.status(500).send('Error al crear comentario');
-	}
-});
+}));
 
 // ============================================================================
-// Rutas de Notificaciones
+// NOTIFICACIONES
 // ============================================================================
 
-// Obtener notificaciones no leídas (JSON)
-router.get('/notifications', requireAdmin, async (req, res) => {
-	try {
-		const notifications = await getUnreadNotifications(req.session.user.id, 10);
-		const count = await getUnreadCount(req.session.user.id);
-		res.json({ notifications, count });
-	} catch (err) {
-		console.error('Error obteniendo notificaciones:', err);
-		res.status(500).json({ error: 'Error al obtener notificaciones' });
-	}
-});
+const { getUnreadNotifications, getUnreadCount, markAsRead, markAllAsRead } = require('../models/notifications');
 
-// Marcar una notificación como leída
-router.post('/notifications/:id/read', requireAdmin, async (req, res) => {
-	try {
-		await markAsRead(parseInt(req.params.id), req.session.user.id);
-		res.json({ success: true });
-	} catch (err) {
-		console.error('Error marcando notificación como leída:', err);
-		res.status(500).json({ error: 'Error al marcar notificación' });
-	}
-});
+router.get('/notifications', requireAdmin, asyncHandler(async (req, res) => {
+	const notifications = await getUnreadNotifications(req.session.user.id, 10);
+	const count = await getUnreadCount(req.session.user.id);
+	res.json({ notifications, count });
+}));
 
-// Marcar todas las notificaciones como leídas
-router.post('/notifications/read-all', requireAdmin, async (req, res) => {
-	try {
-		await markAllAsRead(req.session.user.id);
-		res.json({ success: true });
-	} catch (err) {
-		console.error('Error marcando todas las notificaciones:', err);
-		res.status(500).json({ error: 'Error al marcar notificaciones' });
-	}
-});
+router.post('/notifications/:id/read', requireAdmin, asyncHandler(async (req, res) => {
+	await markAsRead(parseInt(req.params.id), req.session.user.id);
+	res.json({ success: true });
+}));
+
+router.post('/notifications/read-all', requireAdmin, asyncHandler(async (req, res) => {
+	await markAllAsRead(req.session.user.id);
+	res.json({ success: true });
+}));
 
 // ============================================================================
-// Rutas de Gestión de Roles y Permisos
+// GESTIÓN DE ROLES Y PERMISOS
 // ============================================================================
 
-const {
-	getAllPermissions,
-	getAllRoles,
-	getRoleById,
-	createRole,
-	updateRole,
-	deleteRole,
-	countUsersByRole
-} = require('../models/permissions');
+router.get('/roles', requirePermission('manage_roles'), asyncHandler(async (req, res) => {
+	const roles = await roleService.getAllRolesWithUserCount();
 
-// Listar roles y permisos (solo con permiso manage_roles)
-router.get('/roles', requirePermission('manage_roles'), async (req, res) => {
-	try {
-		const roles = await getAllRoles();
-		const userCounts = await countUsersByRole();
+	res.render('admin/roles', {
+		title: 'Gestión de Roles',
+		roles,
+		user: req.session.user,
+		error: req.query.error || null,
+		success: req.query.success || null,
+	});
+}));
 
-		// Combinar información de roles con contadores
-		const rolesWithCounts = roles.map(role => {
-			const countInfo = userCounts.find(uc => uc.id === role.id);
-			return {
-				...role,
-				user_count: countInfo ? parseInt(countInfo.user_count) : 0
-			};
-		});
+router.get('/roles/:id', requirePermission('manage_roles'), asyncHandler(async (req, res) => {
+	const roleId = parseInt(req.params.id);
+	const role = await roleService.getRoleById(roleId);
+	const allPermissions = await roleService.getAllPermissions();
 
-		res.render('admin/roles', {
+	res.render('admin/role-edit', {
+		title: `Editar Rol: ${role.display_name}`,
+		role,
+		allPermissions,
+		user: req.session.user,
+		error: req.query.error || null,
+		success: req.query.success || null,
+	});
+}));
+
+router.post('/roles/crear', requirePermission('manage_roles'), asyncHandler(async (req, res) => {
+	const validation = validate(createRoleSchema, {
+		...req.body,
+		permissions: Array.isArray(req.body.permissions) ? req.body.permissions : (req.body.permissions ? [req.body.permissions] : []),
+	});
+
+	if (!validation.success) {
+		const roles = await roleService.getAllRolesWithUserCount();
+		return res.render('admin/roles', {
 			title: 'Gestión de Roles',
-			roles: rolesWithCounts,
+			roles,
 			user: req.session.user,
-			error: req.query.error || null,
-			success: req.query.success || null
+			error: Object.values(validation.errors).join('. '),
+			success: null,
 		});
-	} catch (err) {
-		console.error('Error obteniendo roles:', err);
-		res.status(500).send('Error al cargar roles');
 	}
-});
 
-// Ver/editar rol específico
-router.get('/roles/:id', requirePermission('manage_roles'), async (req, res) => {
 	try {
-		const roleId = parseInt(req.params.id);
-		const role = await getRoleById(roleId);
-
-		if (!role) {
-			return res.status(404).send('Rol no encontrado');
-		}
-
-		const allPermissions = await getAllPermissions();
-
-		res.render('admin/role-edit', {
-			title: `Editar Rol: ${role.display_name}`,
-			role,
-			allPermissions,
-			user: req.session.user,
-			error: req.query.error || null,
-			success: req.query.success || null
-		});
-	} catch (err) {
-		console.error('Error obteniendo rol:', err);
-		res.status(500).send('Error al cargar rol');
-	}
-});
-
-// Crear nuevo rol
-router.post('/roles/crear', requirePermission('manage_roles'), async (req, res) => {
-	try {
-		const { name, display_name, description, permissions } = req.body;
-		const errors = [];
-
-		if (!name || name.length < 3) errors.push('El nombre debe tener al menos 3 caracteres');
-		if (!display_name) errors.push('El nombre visible es requerido');
-		if (!/^[a-z_]+$/.test(name)) errors.push('El nombre solo puede contener letras minúsculas y guiones bajos');
-
-		if (errors.length > 0) {
-			const roles = await getAllRoles();
-			const userCounts = await countUsersByRole();
-			const rolesWithCounts = roles.map(role => {
-				const countInfo = userCounts.find(uc => uc.id === role.id);
-				return {
-					...role,
-					user_count: countInfo ? parseInt(countInfo.user_count) : 0
-				};
-			});
-
-			return res.render('admin/roles', {
-				title: 'Gestión de Roles',
-				roles: rolesWithCounts,
-				user: req.session.user,
-				error: errors.join('. '),
-				success: null
-			});
-		}
-
-		const permissionArray = Array.isArray(permissions) ? permissions : (permissions ? [permissions] : []);
-		await createRole({ name, display_name, description, permissions: permissionArray });
-
+		await roleService.createRole(validation.data);
 		res.redirect('/admin/roles?success=Rol creado exitosamente');
 	} catch (err) {
-		console.error('Error creando rol:', err);
-		const roles = await getAllRoles();
-		const userCounts = await countUsersByRole();
-		const rolesWithCounts = roles.map(role => {
-			const countInfo = userCounts.find(uc => uc.id === role.id);
-			return {
-				...role,
-				user_count: countInfo ? parseInt(countInfo.user_count) : 0
-			};
-		});
-
-		res.render('admin/roles', {
-			title: 'Gestión de Roles',
-			roles: rolesWithCounts,
-			user: req.session.user,
-			error: 'Error al crear el rol. El nombre puede ya estar en uso.',
-			success: null
-		});
-	}
-});
-
-// Actualizar rol
-router.post('/roles/:id/actualizar', requirePermission('manage_roles'), async (req, res) => {
-	try {
-		const roleId = parseInt(req.params.id);
-		const { display_name, description, permissions } = req.body;
-
-		const permissionArray = Array.isArray(permissions) ? permissions : (permissions ? [permissions] : []);
-		await updateRole(roleId, { display_name, description, permissions: permissionArray });
-
-		res.redirect(`/admin/roles/${roleId}?success=Rol actualizado exitosamente`);
-	} catch (err) {
-		console.error('Error actualizando rol:', err);
-		const roleId = parseInt(req.params.id);
-		const role = await getRoleById(roleId);
-		const allPermissions = await getAllPermissions();
-
-		res.render('admin/role-edit', {
-			title: `Editar Rol: ${role.display_name}`,
-			role,
-			allPermissions,
-			user: req.session.user,
-			error: 'Error al actualizar el rol',
-			success: null
-		});
-	}
-});
-
-// Eliminar rol
-router.post('/roles/:id/eliminar', requirePermission('manage_roles'), async (req, res) => {
-	try {
-		const roleId = parseInt(req.params.id);
-		await deleteRole(roleId);
-		res.redirect('/admin/roles?success=Rol eliminado exitosamente');
-	} catch (err) {
-		console.error('Error eliminando rol:', err);
 		res.redirect(`/admin/roles?error=${encodeURIComponent(err.message)}`);
 	}
-});
+}));
+
+router.post('/roles/:id/actualizar', requirePermission('manage_roles'), asyncHandler(async (req, res) => {
+	const roleId = parseInt(req.params.id);
+
+	const validation = validate(updateRoleSchema, {
+		...req.body,
+		permissions: Array.isArray(req.body.permissions) ? req.body.permissions : (req.body.permissions ? [req.body.permissions] : []),
+	});
+
+	if (!validation.success) {
+		return res.redirect(`/admin/roles/${roleId}?error=${encodeURIComponent(Object.values(validation.errors).join('. '))}`);
+	}
+
+	try {
+		await roleService.updateRole(roleId, validation.data);
+		res.redirect(`/admin/roles/${roleId}?success=Rol actualizado exitosamente`);
+	} catch (err) {
+		res.redirect(`/admin/roles/${roleId}?error=${encodeURIComponent(err.message)}`);
+	}
+}));
+
+router.post('/roles/:id/eliminar', requirePermission('manage_roles'), asyncHandler(async (req, res) => {
+	const roleId = parseInt(req.params.id);
+
+	try {
+		await roleService.deleteRole(roleId);
+		res.redirect('/admin/roles?success=Rol eliminado exitosamente');
+	} catch (err) {
+		res.redirect(`/admin/roles?error=${encodeURIComponent(err.message)}`);
+	}
+}));
 
 module.exports = router;
-
