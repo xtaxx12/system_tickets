@@ -1,0 +1,41 @@
+# Dependencias
+node_modules
+npm-debug.log*
+
+# Git
+.git
+.gitignore
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Logs locales
+logs/
+*.log
+
+# Uploads locales (se montan como volumen)
+uploads/
+
+# Archivos de desarrollo
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentación
+*.md
+!README.md
+
+# Tests
+__tests__/
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Datos locales
+data/
