@@ -1,16 +1,20 @@
 {
   "name": "tickets",
-  "version": "1.0.0",
-  "description": "- Node.js 18+",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Sistema de tickets de soporte técnico",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node seed.js",
     "seed:50": "node seed.js 50",
     "seed:100": "node seed.js 100",
-    "clear-db": "node clear-db.js"
+    "clear-db": "node clear-db.js",
+    "lint": "echo \"Configurar ESLint\"",
+    "test": "echo \"Configurar tests con Jest\""
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [],
   "author": "",
@@ -21,12 +25,15 @@
     "dotenv": "^17.2.2",
     "ejs": "^3.1.10",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.6",
     "pg": "^8.16.3",
     "sqlite3": "^5.1.7",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
