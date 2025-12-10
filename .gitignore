@@ -10,10 +10,13 @@ pnpm-debug.log*
 
 # Env
 .env
+.env.local
+.env.*.local
 
 # Database / uploads
 /data/
 /uploads/
+/backups/
 
 # Credentials
 USUARIOS_TECNICOS.md

@@ -11,7 +11,14 @@
     "seed:100": "node seed.js 100",
     "clear-db": "node clear-db.js",
     "lint": "echo \"Configurar ESLint\"",
-    "test": "echo \"Configurar tests con Jest\""
+    "test": "echo \"Configurar tests con Jest\"",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f app",
+    "health": "curl -s http://localhost:3000/health | node -e \"process.stdin.pipe(process.stdout)\""
   },
   "engines": {
     "node": ">=18.0.0"
