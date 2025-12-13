@@ -84,7 +84,7 @@ describe('Critical Flow: Ticket Creation', () => {
 		requester_name: 'Flow Test User',
 		department: 'IT Department',
 		support_type: 'Hardware',
-		priority: 'Alta – Necesita atención pronto',
+		priority: 'Alta – Necesito ayuda pronto',
 		subject: 'Flow Test - Ticket Creation',
 		description: 'This is a complete flow test for ticket creation with all required fields',
 		has_anydesk: 'no',
@@ -202,8 +202,8 @@ describe('Critical Flow: Login/Logout', () => {
 				password: process.env.ADMIN_PASSWORD || 'testadmin123',
 			});
 
-		// Logout
-		const logoutRes = await agent.get('/admin/logout');
+		// Logout (POST, not GET)
+		const logoutRes = await agent.post('/admin/logout');
 		expect(logoutRes.status).toBe(302);
 		expect(logoutRes.headers.location).toBe('/admin/login');
 

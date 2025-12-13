@@ -383,14 +383,16 @@ describe('roleService Extended', () => {
 			const { rows: perms } = await pool.query('SELECT id FROM permissions LIMIT 2');
 			const permIds = perms.map(p => p.id);
 
-			const role = await roleService.createRole({
+			const roleId = await roleService.createRole({
 				name: `test_role_${Date.now()}`,
 				display_name: 'Test Role',
 				description: 'A test role',
 				permissions: permIds,
 			});
 
-			expect(role).toHaveProperty('id');
+			// createRole returns the role ID (number)
+			expect(typeof roleId).toBe('number');
+			expect(roleId).toBeGreaterThan(0);
 		});
 	});
 
