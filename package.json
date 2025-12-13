@@ -14,7 +14,7 @@
     "test": "echo \"Configurar tests con Jest\""
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20.x"
   },
   "keywords": [],
   "author": "",

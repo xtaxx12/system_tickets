@@ -3,12 +3,34 @@
  */
 require('dotenv').config();
 
+// Parsear DATABASE_URL si existe (Render y otros PaaS lo usan)
+function parseDatabaseUrl() {
+	const url = process.env.DATABASE_URL;
+	if (!url) return null;
+
+	try {
+		const parsed = new URL(url);
+		return {
+			host: parsed.hostname,
+			port: parseInt(parsed.port || '5432', 10),
+			user: parsed.username,
+			password: parsed.password,
+			database: parsed.pathname.slice(1),
+			ssl: { rejectUnauthorized: false },
+		};
+	} catch {
+		return null;
+	}
+}
+
+const dbFromUrl = parseDatabaseUrl();
+
 const config = {
 	env: process.env.NODE_ENV || 'development',
 	port: parseInt(process.env.PORT || '3000', 10),
 
-	// Base de datos
-	db: {
+	// Base de datos (soporta DATABASE_URL o variables individuales)
+	db: dbFromUrl || {
 		host: process.env.PGHOST || 'localhost',
 		port: parseInt(process.env.PGPORT || '5432', 10),
 		user: process.env.PGUSER || 'postgres',

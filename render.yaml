@@ -1,0 +1,69 @@
+# ============================================================================
+# Render Blueprint - Sistema de Tickets
+# ============================================================================
+# Este archivo define la infraestructura completa en Render
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ==========================================================================
+  # Web Service - Aplicación Node.js
+  # ==========================================================================
+  - type: web
+    name: tickets-app
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false  # Se configura manualmente en el dashboard
+      - key: PGHOST
+        fromDatabase:
+          name: tickets-db
+          property: host
+      - key: PGPORT
+        fromDatabase:
+          name: tickets-db
+          property: port
+      - key: PGUSER
+        fromDatabase:
+          name: tickets-db
+          property: user
+      - key: PGPASSWORD
+        fromDatabase:
+          name: tickets-db
+          property: password
+      - key: PGDATABASE
+        fromDatabase:
+          name: tickets-db
+          property: database
+      - key: PGSSLMODE
+        value: require
+      - key: APP_BASE_URL
+        fromService:
+          name: tickets-app
+          type: web
+          property: host
+      - key: LOG_LEVEL
+        value: info
+    autoDeploy: true
+
+# ==========================================================================
+# Base de datos PostgreSQL
+# ==========================================================================
+databases:
+  - name: tickets-db
+    plan: free
+    region: oregon
+    databaseName: tickets
+    user: tickets_user
