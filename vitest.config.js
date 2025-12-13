@@ -10,7 +10,7 @@ export default defineConfig({
 		fileParallelism: false,
 		coverage: {
 			provider: 'v8',
-			reporter: ['text', 'json', 'html'],
+			reporter: ['text', 'json', 'html', 'lcov'],
 			include: ['src/**/*.js'],
 			exclude: ['src/views/**', 'src/server.js'],
 			thresholds: {

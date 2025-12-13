@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Tests
+tests
+coverage
+*.test.js
+vitest.config.js
+
+# Documentation
+*.md
+!README.md
+
+# Environment files (use Docker secrets or env vars)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+
+# Uploads (mount as volume)
+uploads/*
+!uploads/.gitkeep
+
+# Build artifacts
+dist
+build
+
+# CI/CD
+.github
+.kiro
+
+# Misc
+.DS_Store
+Thumbs.db
