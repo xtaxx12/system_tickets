@@ -6,6 +6,8 @@ export default defineConfig({
 		environment: 'node',
 		testTimeout: 30000,
 		hookTimeout: 30000,
+		// Ejecutar tests de integración secuencialmente para evitar conflictos de DB
+		fileParallelism: false,
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],
