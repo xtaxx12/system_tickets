@@ -1,5 +1,5 @@
 const express = require('express');
-const { SUPPORT_TYPES, PRIORITIES } = require('../models/tickets');
+const { SUPPORT_TYPES, PRIORITIES } = require('../repositories/TicketRepository');
 const ticketService = require('../services/ticketService');
 const emailService = require('../services/emailService');
 const { upload, handleUploadError } = require('../middleware/upload');

@@ -1,93 +1,161 @@
 /**
  * Servicio de lógica de negocio para Roles y Permisos
+ * Implementa el patrón Repository con inyección de dependencias.
  */
-const permissionModel = require('../models/permissions');
+const { getPool } = require('../db');
+const { getRepositoryContainer } = require('../repositories');
 const { NotFoundError, ForbiddenError } = require('../middleware/errorHandler');
 
-/**
- * Obtener todos los roles con conteo de usuarios
- */
-async function getAllRolesWithUserCount() {
-	const roles = await permissionModel.getAllRoles();
-	const userCounts = await permissionModel.countUsersByRole();
-
-	return roles.map(role => {
-		const countInfo = userCounts.find(uc => uc.id === role.id);
-		return {
-			...role,
-			user_count: countInfo ? parseInt(countInfo.user_count) : 0,
-		};
-	});
-}
-
-/**
- * Obtener rol por ID con permisos
- */
-async function getRoleById(roleId) {
-	const role = await permissionModel.getRoleById(roleId);
-	if (!role) {
-		throw new NotFoundError('Rol');
+// Lazy loading del container
+let _container = null;
+function getContainer() {
+	if (!_container) {
+		_container = getRepositoryContainer(getPool());
 	}
-	return role;
+	return _container;
 }
 
 /**
- * Obtener todos los permisos organizados por categoría
+ * Servicio de Roles con inyección de dependencias
  */
-async function getAllPermissions() {
-	return permissionModel.getAllPermissions();
-}
-
-/**
- * Crear nuevo rol
- */
-async function createRole(data) {
-	return permissionModel.createRole(data);
-}
-
-/**
- * Actualizar rol existente
- */
-async function updateRole(roleId, data) {
-	const role = await permissionModel.getRoleById(roleId);
-	if (!role) {
-		throw new NotFoundError('Rol');
+class RoleService {
+	/**
+	 * @param {Object} deps - Dependencias inyectadas
+	 * @param {import('../repositories/PermissionRepository')} deps.permissionRepository
+	 */
+	constructor(deps = {}) {
+		this.permissionRepo = deps.permissionRepository || getContainer().permissions;
 	}
 
-	await permissionModel.updateRole(roleId, data);
-	return true;
-}
+	/**
+	 * Obtener todos los roles con conteo de usuarios
+	 * @returns {Promise<Array>}
+	 */
+	async getAllRolesWithUserCount() {
+		const roles = await this.permissionRepo.getAllRoles();
+		const userCounts = await this.permissionRepo.countUsersByRole();
 
-/**
- * Eliminar rol
- */
-async function deleteRole(roleId) {
-	const role = await permissionModel.getRoleById(roleId);
-	if (!role) {
-		throw new NotFoundError('Rol');
+		return roles.map(role => {
+			const countInfo = userCounts.find(uc => uc.id === role.id);
+			return {
+				...role,
+				user_count: countInfo ? parseInt(countInfo.user_count) : 0,
+			};
+		});
 	}
 
-	if (role.is_system) {
-		throw new ForbiddenError('No se puede eliminar un rol del sistema');
+	/**
+	 * Obtener rol por ID con permisos
+	 * @param {number} roleId
+	 * @returns {Promise<Object>}
+	 */
+	async getRoleById(roleId) {
+		const role = await this.permissionRepo.getRoleById(roleId);
+		if (!role) {
+			throw new NotFoundError('Rol');
+		}
+		return role;
 	}
 
-	await permissionModel.deleteRole(roleId);
-	return true;
+	/**
+	 * Obtener todos los permisos organizados por categoría
+	 * @returns {Promise<Object>}
+	 */
+	async getAllPermissions() {
+		return this.permissionRepo.getAllPermissions();
+	}
+
+	/**
+	 * Crear nuevo rol
+	 * @param {Object} data
+	 * @returns {Promise<number>}
+	 */
+	async createRole(data) {
+		return this.permissionRepo.createRole(data);
+	}
+
+	/**
+	 * Actualizar rol existente
+	 * @param {number} roleId
+	 * @param {Object} data
+	 * @returns {Promise<boolean>}
+	 */
+	async updateRole(roleId, data) {
+		const role = await this.permissionRepo.getRoleById(roleId);
+		if (!role) {
+			throw new NotFoundError('Rol');
+		}
+
+		await this.permissionRepo.updateRole(roleId, data);
+		return true;
+	}
+
+	/**
+	 * Eliminar rol
+	 * @param {number} roleId
+	 * @returns {Promise<boolean>}
+	 */
+	async deleteRole(roleId) {
+		const role = await this.permissionRepo.getRoleById(roleId);
+		if (!role) {
+			throw new NotFoundError('Rol');
+		}
+
+		if (role.is_system) {
+			throw new ForbiddenError('No se puede eliminar un rol del sistema');
+		}
+
+		await this.permissionRepo.deleteRole(roleId);
+		return true;
+	}
+
+	/**
+	 * Obtener permisos de un usuario
+	 * @param {number} userId
+	 * @returns {Promise<Array<string>>}
+	 */
+	async getUserPermissions(userId) {
+		return this.permissionRepo.getUserPermissions(userId);
+	}
+
+	/**
+	 * Verificar si un usuario tiene un permiso específico
+	 * @param {number} userId
+	 * @param {string} permissionName
+	 * @returns {Promise<boolean>}
+	 */
+	async userHasPermission(userId, permissionName) {
+		return this.permissionRepo.userHasPermission(userId, permissionName);
+	}
+
+	/**
+	 * Verificar si un usuario tiene alguno de los permisos especificados
+	 * @param {number} userId
+	 * @param {Array<string>} permissionNames
+	 * @returns {Promise<boolean>}
+	 */
+	async userHasAnyPermission(userId, permissionNames) {
+		return this.permissionRepo.userHasAnyPermission(userId, permissionNames);
+	}
 }
 
-/**
- * Obtener permisos de un usuario
- */
-async function getUserPermissions(userId) {
-	return permissionModel.getUserPermissions(userId);
-}
+// Instancia singleton para compatibilidad con código existente
+const defaultInstance = new RoleService();
 
 module.exports = {
-	getAllRolesWithUserCount,
-	getRoleById,
-	getAllPermissions,
-	createRole,
-	updateRole,
-	deleteRole,
-	getUserPermissions,
+	// Clase para testing y DI
+	RoleService,
+
+	// Métodos del singleton para compatibilidad
+	getAllRolesWithUserCount: () => defaultInstance.getAllRolesWithUserCount(),
+	getRoleById: (roleId) => defaultInstance.getRoleById(roleId),
+	getAllPermissions: () => defaultInstance.getAllPermissions(),
+	createRole: (data) => defaultInstance.createRole(data),
+	updateRole: (roleId, data) => defaultInstance.updateRole(roleId, data),
+	deleteRole: (roleId) => defaultInstance.deleteRole(roleId),
+	getUserPermissions: (userId) => defaultInstance.getUserPermissions(userId),
+	userHasPermission: (userId, permissionName) =>
+		defaultInstance.userHasPermission(userId, permissionName),
+	userHasAnyPermission: (userId, permissionNames) =>
+		defaultInstance.userHasAnyPermission(userId, permissionNames),
 };
