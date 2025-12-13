@@ -667,6 +667,31 @@
 					</div>
 				</div>
 
+				<!-- Card de Generar Reporte PDF -->
+				<% if (['Resuelto', 'Cerrado'].includes(ticket.status)) { %>
+				<div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+					<div class="bg-gradient-to-r from-green-50 to-emerald-50 px-5 py-4 border-b border-gray-200">
+						<h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+							<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+							</svg>
+							Generar Reporte
+						</h3>
+					</div>
+					<div class="p-5">
+						<p class="text-sm text-gray-600 mb-4">Descarga un reporte PDF con toda la información del ticket resuelto.</p>
+						<a href="/admin/tickets/<%= ticket.reference %>/reporte" 
+						   class="w-full py-3 rounded-lg font-semibold shadow-lg flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transition-all">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+							</svg>
+							Descargar PDF
+						</a>
+						<p class="mt-3 text-xs text-gray-500 text-center">Incluye detalles y comentarios públicos</p>
+					</div>
+				</div>
+				<% } %>
+
 				<!-- Card de Acciones Rápidas -->
 				<div class="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-5 border border-blue-200">
 					<div class="flex gap-3">
