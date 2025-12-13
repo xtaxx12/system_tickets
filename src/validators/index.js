@@ -156,7 +156,9 @@ function validate(schema, data) {
 	const result = schema.safeParse(data);
 	if (!result.success) {
 		const errors = {};
-		result.error.errors.forEach((err) => {
+		// Zod v4 usa 'issues' en lugar de 'errors'
+		const issues = result.error.issues || result.error.errors || [];
+		issues.forEach((err) => {
 			const path = err.path.join('.');
 			errors[path] = err.message;
 		});

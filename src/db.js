@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const config = require('./config');
 
 let pool;
+let initializationPromise = null;
+let isInitialized = false;
 
 function getPool() {
 	if (!pool) {
@@ -26,6 +28,27 @@ function getPool() {
 }
 
 async function ensureDatabaseInitialized() {
+	// Si ya está inicializado, retornar inmediatamente
+	if (isInitialized) {
+		return;
+	}
+
+	// Si hay una inicialización en progreso, esperar a que termine
+	if (initializationPromise) {
+		return initializationPromise;
+	}
+
+	// Iniciar nueva inicialización
+	initializationPromise = doInitialize();
+	try {
+		await initializationPromise;
+		isInitialized = true;
+	} finally {
+		initializationPromise = null;
+	}
+}
+
+async function doInitialize() {
 	const client = await getPool().connect();
 	try {
 		await client.query('BEGIN');

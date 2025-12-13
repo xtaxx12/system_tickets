@@ -11,8 +11,13 @@
     "seed:100": "node seed.js 100",
     "clear-db": "node clear-db.js",
     "lint": "echo \"Configurar ESLint\"",
-    "test": "echo \"Configurar tests con Jest\""
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration"
   },
+
   "engines": {
     "node": ">=18.0.0"
   },
@@ -38,6 +43,9 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "@vitest/coverage-v8": "^4.0.15",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4",
+    "vitest": "^4.0.15"
   }
 }
