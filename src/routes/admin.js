@@ -1,10 +1,14 @@
 const express = require('express');
-const { STATUSES } = require('../models/tickets');
+const TicketRepository = require('../repositories/TicketRepository');
 const ticketService = require('../services/ticketService');
 const userService = require('../services/userService');
 const roleService = require('../services/roleService');
 const emailService = require('../services/emailService');
-const { getCommentsByTicketId } = require('../models/comments');
+const { getPool } = require('../db');
+const { getRepositoryContainer } = require('../repositories');
+
+// Constantes de estados desde el repositorio
+const { STATUSES } = TicketRepository;
 
 // Middlewares
 const { requireAuth, requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/auth');
@@ -256,7 +260,8 @@ router.post('/tickets/:reference/comments',
 
 		// Notificar por email si no es interno
 		if (!is_internal) {
-			const prevComments = await getCommentsByTicketId(ticket.id, false);
+			const container = getRepositoryContainer(getPool());
+			const prevComments = await container.comments.findByTicketId(ticket.id, false);
 			const emails = [...new Set(prevComments.map(c => c.author_email).filter(Boolean))];
 			if (emails.length > 0) {
 				await emailService.sendCommentNotificationEmail(ticket, { content }, emails);
@@ -335,21 +340,23 @@ router.post('/usuarios/:id/eliminar', requireSuperAdmin, asyncHandler(async (req
 // NOTIFICACIONES
 // ============================================================================
 
-const { getUnreadNotifications, getUnreadCount, markAsRead, markAllAsRead } = require('../models/notifications');
+// Helper para obtener el repositorio de notificaciones
+const getNotificationRepo = () => getRepositoryContainer(getPool()).notifications;
 
 router.get('/notifications', requireAdmin, asyncHandler(async (req, res) => {
-	const notifications = await getUnreadNotifications(req.session.user.id, 10);
-	const count = await getUnreadCount(req.session.user.id);
+	const notificationRepo = getNotificationRepo();
+	const notifications = await notificationRepo.findUnread(req.session.user.id, 10);
+	const count = await notificationRepo.countUnread(req.session.user.id);
 	res.json({ notifications, count });
 }));
 
 router.post('/notifications/:id/read', requireAdmin, asyncHandler(async (req, res) => {
-	await markAsRead(parseInt(req.params.id), req.session.user.id);
+	await getNotificationRepo().markAsRead(parseInt(req.params.id), req.session.user.id);
 	res.json({ success: true });
 }));
 
 router.post('/notifications/read-all', requireAdmin, asyncHandler(async (req, res) => {
-	await markAllAsRead(req.session.user.id);
+	await getNotificationRepo().markAllAsRead(req.session.user.id);
 	res.json({ success: true });
 }));
 
