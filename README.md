@@ -1,12 +1,20 @@
 # Sistema de Tickets de Soporte
 
-Sistema completo de gestión de tickets con control de acceso basado en roles y permisos granulares.
+[![CI/CD](https://github.com/xtaxx12/system_tickets/actions/workflows/ci.yml/badge.svg)](https://github.com/xtaxx12/system_tickets/actions/workflows/ci.yml)
+
+Sistema completo de gestión de tickets con control de acceso basado en roles, permisos granulares, y arquitectura de producción.
+
+## 🚀 Demo
+
+**Producción:** https://tickets-app-m6jd.onrender.com
 
 ## Requisitos
-- Node.js 18+
-- PostgreSQL 12+
+
+- Node.js 20+
+- PostgreSQL 16+
 
 ## Configuración
+
 1. Copia `.env.example` a `.env` y ajusta valores:
    ```bash
    cp .env.example .env
@@ -18,211 +26,278 @@ Sistema completo de gestión de tickets con control de acceso basado en roles y 
 3. La base de datos se inicializa automáticamente al ejecutar la aplicación.
 
 ## Ejecutar
-- Desarrollo:
-  ```bash
-  npm run dev
-  ```
-- Producción:
-  ```bash
-  npm start
-  ```
+
+```bash
+# Desarrollo
+npm run dev
+
+# Producción
+npm start
+
+# Tests
+npm test              # Todos los tests
+npm run test:unit     # Solo unit tests
+npm run test:coverage # Con cobertura
+```
+
+## 🐳 Docker
+
+```bash
+# Build
+docker build -t tickets-app .
+
+# Run
+docker run -p 3000:3000 \
+  -e DATABASE_URL=postgresql://... \
+  -e SESSION_SECRET=... \
+  tickets-app
+```
 
 ## Accesos
+
 - Público: `http://localhost:3000/`
 - Listado público: `http://localhost:3000/tickets`
 - Panel Admin: `http://localhost:3000/admin`
-  - Usuario por defecto: `admin` / Contraseña: configurada en `.env`
+- Health Check: `http://localhost:3000/health`
 
-## Características Principales
+## 🏗️ Arquitectura
 
-### 🎫 Gestión de Tickets
-- Creación de tickets con:
-  - Imagen adjunta opcional
-  - Información de AnyDesk
-  - Notificación por correo electrónico
-  - Prioridades: Baja, Media, Alta
-  - Tipos de soporte: Hardware, Software, Red, Otro
-- Referencia única generada automáticamente (ej: `TKT-2024-0001`)
-- Estados: Pendiente, En Proceso, Resuelto, Cerrado
-- Asignación de tickets a técnicos
-- Edición pública mediante token único
-- Comentarios públicos e internos
-- Vista detallada con historial completo
+### Capas de la Aplicación
 
-### 👥 Sistema de Usuarios y Roles
-- Roles predefinidos del sistema:
-  - **Administrador**: Acceso total al sistema
-  - **Supervisor**: Gestión de tickets y asignaciones
-  - **Técnico**: Visualización y atención de tickets
-- Roles personalizables con permisos granulares
-- Gestión completa de usuarios (crear, editar rol, eliminar)
-- Perfil de usuario con cambio de contraseña
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Routes                              │
+│              (public.js, admin.js, health.js)           │
+├─────────────────────────────────────────────────────────┤
+│                    Middlewares                           │
+│    (auth, security, errorHandler, upload, validators)   │
+├─────────────────────────────────────────────────────────┤
+│                     Services                             │
+│   (ticketService, userService, roleService, email)      │
+├─────────────────────────────────────────────────────────┤
+│                      Models                              │
+│    (tickets, comments, notifications, permissions)      │
+├─────────────────────────────────────────────────────────┤
+│                     Database                             │
+│                    (PostgreSQL)                          │
+└─────────────────────────────────────────────────────────┘
+```
 
-### 🔐 Permisos Granulares
-Sistema de 14 permisos específicos organizados en 5 categorías:
-
-**Gestión de Tickets:**
-- Ver tickets
-- Asignar tickets a técnicos
-- Cambiar estado de tickets
-- Eliminar tickets
-
-**Comentarios:**
-- Agregar comentarios públicos
-- Agregar comentarios internos
-
-**Estadísticas:**
-- Ver estadísticas del sistema
-- Ver reportes
-
-**Administración:**
-- Gestionar usuarios (crear, editar, eliminar)
-- Gestionar roles y permisos
-
-**Notificaciones:**
-- Recibir notificaciones de nuevos tickets
-- Recibir notificaciones de asignaciones
-- Recibir notificaciones de comentarios
-- Recibir notificaciones de cambios de estado
-
-### 🔔 Sistema de Notificaciones
-- Notificaciones en tiempo real por rol
-- Alertas específicas según permisos del usuario:
-  - Nuevos tickets creados
-  - Tickets asignados
-  - Nuevos comentarios
-  - Cambios de estado
-  - Tickets de alta prioridad sin asignar
-- Indicador visual de notificaciones no leídas
-- Marcar como leídas individualmente o todas a la vez
-
-### 📊 Panel Administrativo
-- Dashboard con estadísticas en tiempo real:
-  - Total de tickets por estado
-  - Estadísticas personales del usuario
-  - Distribución por prioridad y tipo
-- Filtros avanzados:
-  - Por estado, prioridad, tipo de soporte
-  - Por técnico asignado
-  - "Mis Tickets" (filtro personal)
-- Paginación (15 tickets por página)
-- Búsqueda y ordenamiento
-
-### 🛠️ Gestión de Roles y Permisos
-- Interfaz visual para configurar permisos por rol
-- Creación de roles personalizados
-- Edición de permisos para roles existentes
-- No se pueden eliminar roles del sistema
-- No se pueden eliminar roles con usuarios asignados
-- Asignación y cambio de roles de usuarios desde el panel
-
-### 📧 Notificaciones por Email
-- Confirmación de creación de ticket
-- Actualizaciones de estado
-- Respuestas a comentarios
-- Configuración SMTP opcional
-
-## Estructura del Proyecto
+### Estructura del Proyecto
 
 ```
 system_tickets/
+├── .github/
+│   └── workflows/
+│       └── ci.yml              # CI/CD Pipeline
 ├── src/
-│   ├── db.js                    # Configuración y migraciones de BD
-│   ├── app.js                   # Aplicación Express
+│   ├── config/
+│   │   └── index.js            # Configuración centralizada
+│   ├── middleware/
+│   │   ├── auth.js             # Autenticación y permisos
+│   │   ├── security.js         # Headers de seguridad, rate limiting
+│   │   ├── errorHandler.js     # Manejo centralizado de errores
+│   │   ├── upload.js           # Subida de archivos
+│   │   └── requestLogger.js    # Logging de requests
 │   ├── models/
-│   │   ├── tickets.js           # Modelo de tickets
-│   │   ├── comments.js          # Modelo de comentarios
-│   │   ├── notifications.js     # Modelo de notificaciones
-│   │   └── permissions.js       # Modelo de permisos y roles
+│   │   ├── tickets.js          # Modelo de tickets
+│   │   ├── comments.js         # Modelo de comentarios
+│   │   ├── notifications.js    # Modelo de notificaciones
+│   │   └── permissions.js      # Modelo de permisos y roles
 │   ├── routes/
-│   │   ├── public.js            # Rutas públicas
-│   │   └── admin.js             # Rutas administrativas
-│   └── views/
-│       ├── public/              # Vistas públicas
-│       │   ├── index.ejs
-│       │   ├── list.ejs
-│       │   ├── detail.ejs
-│       │   └── edit.ejs
-│       └── admin/               # Vistas administrativas
-│           ├── login.ejs
-│           ├── list.ejs
-│           ├── detail.ejs
-│           ├── perfil.ejs
-│           ├── usuarios.ejs
-│           ├── roles.ejs
-│           └── role-edit.ejs
-├── uploads/                     # Imágenes adjuntas
-├── .env                         # Variables de entorno
-├── .env.example                 # Ejemplo de configuración
-└── package.json
+│   │   ├── public.js           # Rutas públicas
+│   │   ├── admin.js            # Rutas administrativas
+│   │   └── health.js           # Health checks
+│   ├── services/
+│   │   ├── ticketService.js    # Lógica de tickets
+│   │   ├── userService.js      # Lógica de usuarios
+│   │   ├── roleService.js      # Lógica de roles
+│   │   └── emailService.js     # Envío de emails
+│   ├── utils/
+│   │   └── logger.js           # Winston logger
+│   ├── validators/
+│   │   └── index.js            # Validación con Zod
+│   ├── views/                  # Templates EJS
+│   ├── db.js                   # Conexión y migraciones
+│   └── server.js               # Entry point
+├── tests/
+│   ├── unit/                   # Tests unitarios
+│   ├── integration/            # Tests de integración
+│   └── helpers/                # Utilidades de test
+├── Dockerfile                  # Multi-stage build
+├── .dockerignore
+└── vitest.config.js
+```
+
+## 🔒 Seguridad
+
+### Middlewares Implementados
+
+- **Helmet**: Headers de seguridad HTTP
+- **Rate Limiting**: 100 req/15min general, 5 req/15min login
+- **CORS**: Configuración de orígenes permitidos
+- **XSS Protection**: Sanitización de inputs
+- **SQL Injection**: Queries parametrizadas
+- **CSRF**: Protección en formularios
+- **Session Security**: Cookies seguras, regeneración de sesión
+
+### Validación
+
+Validación de datos con **Zod**:
+- Tickets: nombre, departamento, prioridad, descripción
+- Usuarios: username, password, role
+- Comentarios: contenido, longitud máxima
+- Roles: nombre, permisos
+
+## 🧪 Testing
+
+### Suite de Tests (216 tests)
+
+| Categoría | Tests | Descripción |
+|-----------|-------|-------------|
+| Unit | 42 | Validadores Zod |
+| Integration - Routes | 44 | Rutas públicas y admin |
+| Integration - Services | 51 | Servicios de negocio |
+| Critical Flows | 17 | Flujos completos E2E |
+| Negative Cases | 42 | Validación de errores |
+| Security | 20 | Auth, permisos, XSS, SQLi |
+
+### Ejecutar Tests
+
+```bash
+# Todos los tests
+npm test
+
+# Solo unitarios (sin DB)
+npm run test:unit
+
+# Con cobertura (requiere PostgreSQL)
+npm run test:coverage
+
+# Watch mode
+npm run test:watch
+```
+
+### Cobertura
+
+Mínimo requerido: **55%** (configurado en `vitest.config.js`)
+
+## 🔄 CI/CD Pipeline
+
+### Jobs del Pipeline
+
+```
+┌──────────────┐    ┌────────────────────┐    ┌─────────────┐
+│  Unit Tests  │───▶│ Integration Tests  │───▶│Docker Build │
+└──────────────┘    └────────────────────┘    └──────┬──────┘
+                                                      │
+┌────────────────┐                                    │
+│ Security Audit │────────────────────────────────────┤
+└────────────────┘                                    │
+                                                      ▼
+                    ┌──────────────────┐    ┌──────────────┐
+                    │ Deploy to Render │───▶│ Health Check │
+                    └──────────────────┘    └──────────────┘
+                         (solo main)
+```
+
+### Triggers
+
+- **Push/PR a `develop`**: Tests + Docker Build
+- **Push/PR a `main`**: Tests + Docker Build + Deploy + Health Check
+
+### Secrets Requeridos (GitHub)
+
+| Secret | Descripción |
+|--------|-------------|
+| `RENDER_DEPLOY_HOOK` | Webhook URL de Render |
+| `APP_URL` | URL de la aplicación en producción |
+
+## 📊 Health Checks
+
+```bash
+# Básico
+GET /health
+# Response: { "status": "ok", "timestamp": "..." }
+
+# Con verificación de DB
+GET /health/ready
+# Response: { "status": "ok", "database": "connected" }
+
+# Métricas
+GET /health/metrics
+# Response: { "memory": {...}, "uptime": ... }
+```
+
+## 🎫 Características Principales
+
+### Gestión de Tickets
+- Creación con imagen adjunta opcional
+- Información de AnyDesk
+- Prioridades: Baja, Media, Alta, Crítica
+- Tipos: Hardware, Software, Red, Otro
+- Estados: Pendiente, En Proceso, Resuelto, Cerrado
+- Referencia única automática (ej: `TKT-2024-0001`)
+- Edición pública mediante token único
+- Comentarios públicos e internos
+
+### Sistema de Usuarios y Roles
+- **Administrador**: Acceso total
+- **Supervisor**: Gestión de tickets y asignaciones
+- **Técnico**: Visualización y atención
+- Roles personalizables con 14 permisos granulares
+
+### Sistema de Notificaciones
+- Notificaciones en tiempo real por rol
+- Alertas de nuevos tickets, asignaciones, comentarios
+- Indicador visual de no leídas
+
+### Panel Administrativo
+- Dashboard con estadísticas en tiempo real
+- Filtros avanzados por estado, prioridad, técnico
+- Paginación (15 tickets por página)
+
+## 📧 Notificaciones por Email
+
+Configuración SMTP opcional en `.env`:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=tu-email@gmail.com
+SMTP_PASS=tu-password
 ```
 
 ## Variables de Entorno
 
 ```env
 # Base de datos
-DATABASE_URL=postgresql://usuario:password@localhost:5432/tickets
+PGHOST=localhost
+PGPORT=5432
+PGUSER=postgres
+PGPASSWORD=password
+PGDATABASE=tickets
 
 # Servidor
 PORT=3000
-SESSION_SECRET=tu-secreto-seguro
+NODE_ENV=production
+SESSION_SECRET=tu-secreto-seguro-minimo-32-caracteres
 
 # Admin por defecto
 ADMIN_USER=admin
-ADMIN_PASS=admin123
+ADMIN_PASSWORD=admin123
 
-# SMTP (opcional)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=tu-email@gmail.com
-SMTP_PASS=tu-password
-SMTP_FROM=soporte@tuempresa.com
-
-# URL base para emails
-APP_BASE_URL=http://localhost:3000
+# Logging
+LOG_LEVEL=info
 ```
 
-## API de Permisos
+## 📝 Logging
 
-Los middlewares de permisos disponibles en el backend:
-
-```javascript
-// Requiere un permiso específico
-requirePermission('assign_tickets')
-
-// Requiere cualquiera de los permisos listados
-requireAnyPermission('view_tickets', 'view_statistics')
-
-// Agrega permisos del usuario al request
-addUserPermissions
-```
-
-## Inicialización de la Base de Datos
-
-Al ejecutar la aplicación por primera vez, se crean automáticamente:
-- Tablas de la base de datos (tickets, users, comments, notifications, roles, permissions)
-- Roles del sistema (admin, supervisor, tecnico)
-- Permisos predefinidos (14 permisos en 5 categorías)
-- Usuario administrador por defecto
-- Relaciones entre roles y permisos
-
-## Uso
-
-1. Accede al panel admin: `http://localhost:3000/admin`
-2. Inicia sesión con las credenciales de administrador
-3. Gestiona roles y permisos en `/admin/roles`
-4. Crea usuarios con roles específicos en `/admin/usuarios`
-5. Los usuarios recibirán notificaciones según sus permisos
-
-## Seguridad
-
-- Contraseñas hasheadas con bcrypt
-- Sesiones seguras con express-session
-- Validación de permisos en backend y frontend
-- Protección contra cambios no autorizados
-- Usuarios no pueden modificar su propio rol
-- Roles del sistema protegidos contra eliminación
+Logging estructurado con **Winston**:
+- Niveles: error, warn, info, debug
+- Archivos: `logs/error.log`, `logs/combined.log`
+- Formato JSON en producción
+- Colores en desarrollo
 
 ## Licencia
 
