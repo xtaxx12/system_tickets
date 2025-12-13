@@ -196,24 +196,20 @@ describe('userService Extended', () => {
 	});
 
 	describe('deleteUser', () => {
-		let testUser;
-
-		beforeEach(async () => {
+		it('should delete user', async () => {
+			// Create user specifically for this test
 			const hash = '$2a$10$test';
 			const { rows } = await pool.query(
 				"INSERT INTO users (username, password_hash, role, role_id) VALUES ($1, $2, 'tecnico', $3) RETURNING *",
-				[`test_del_${Date.now()}`, hash, adminRoleId]
+				[`test_del_${Date.now()}_${Math.random().toString(36).slice(2)}`, hash, adminRoleId]
 			);
-			testUser = rows[0];
-		});
+			const testUser = rows[0];
 
-		it('should delete user', async () => {
 			const result = await userService.deleteUser(testUser.id, adminUser.id);
 			expect(result).toBe(true);
 
 			// Verify user is deleted
 			await expect(userService.getUserById(testUser.id)).rejects.toThrow('no encontrado');
-			testUser = null; // Prevent afterEach cleanup error
 		});
 
 		it('should reject deleting own account', async () => {
