@@ -6,4 +6,5 @@ module.exports = {
 	ticketService: require('./ticketService'),
 	emailService: require('./emailService'),
 	roleService: require('./roleService'),
+	reportService: require('./reportService'),
 };

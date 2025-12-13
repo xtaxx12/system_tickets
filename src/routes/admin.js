@@ -4,6 +4,7 @@ const ticketService = require('../services/ticketService');
 const userService = require('../services/userService');
 const roleService = require('../services/roleService');
 const emailService = require('../services/emailService');
+const reportService = require('../services/reportService');
 const { getPool } = require('../db');
 const { getRepositoryContainer } = require('../repositories');
 
@@ -269,6 +270,34 @@ router.post('/tickets/:reference/comments',
 		}
 
 		res.redirect(`/admin/tickets/${ticket.reference}`);
+	})
+);
+
+// ============================================================================
+// GENERACIÓN DE REPORTES PDF
+// ============================================================================
+
+router.get('/tickets/:reference/reporte',
+	requireAdmin,
+	asyncHandler(async (req, res) => {
+		const { ticket, comments } = await ticketService.getTicketWithComments(req.params.reference, true);
+
+		// Solo permitir generar reporte si el ticket está Resuelto o Cerrado
+		if (!['Resuelto', 'Cerrado'].includes(ticket.status)) {
+			return res.status(400).send('Solo se pueden generar reportes de tickets resueltos o cerrados');
+		}
+
+		// Generar PDF
+		const doc = reportService.generateTicketReport(ticket, comments);
+
+		// Configurar headers para descarga
+		const filename = `reporte-${ticket.reference}.pdf`;
+		res.setHeader('Content-Type', 'application/pdf');
+		res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+		// Pipe el documento al response
+		doc.pipe(res);
+		doc.end();
 	})
 );
 
