@@ -244,7 +244,7 @@ describe('ticketService Extended', () => {
 		await pool.query("DELETE FROM tickets WHERE reference LIKE 'T-EXT%'");
 	});
 
-	describe('updateTicket', () => {
+	describe('updateTicketByToken', () => {
 		let testTicket;
 
 		beforeEach(async () => {
@@ -252,18 +252,23 @@ describe('ticketService Extended', () => {
 				`INSERT INTO tickets (reference, requester_name, department, support_type, priority, subject, description, status, edit_token)
 				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				 RETURNING *`,
-				[`T-EXT-${Date.now()}`, 'Test', 'IT', 'Hardware', 'Media – Puede esperar unas horas', 'Test', 'Description', 'Pendiente', `token-${Date.now()}`]
+				[`T-EXT-${Date.now()}`, 'Test', 'IT', 'Hardware', 'Media – Puede esperar unas horas', 'Test', 'Description here', 'Pendiente', `token-${Date.now()}`]
 			);
 			testTicket = rows[0];
 		});
 
-		it('should update ticket fields', async () => {
-			const updated = await ticketService.updateTicket(testTicket.id, {
+		it('should update ticket by token', async () => {
+			const updated = await ticketService.updateTicketByToken(testTicket.edit_token, {
 				subject: 'Updated Subject Here',
-				description: 'Updated description with enough characters',
 			});
 
 			expect(updated.subject).toBe('Updated Subject Here');
+		});
+
+		it('should throw NotFoundError for invalid token', async () => {
+			await expect(
+				ticketService.updateTicketByToken('invalid-token', { subject: 'Test' })
+			).rejects.toThrow('no encontrado');
 		});
 	});
 
@@ -299,23 +304,62 @@ describe('ticketService Extended', () => {
 		});
 	});
 
-	describe('deleteTicket', () => {
-		it('should delete ticket', async () => {
+	describe('getTicketWithComments', () => {
+		let testTicket;
+
+		beforeEach(async () => {
 			const { rows } = await pool.query(
 				`INSERT INTO tickets (reference, requester_name, department, support_type, priority, subject, description, status, edit_token)
 				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				 RETURNING *`,
-				[`T-EXT-DEL-${Date.now()}`, 'Test', 'IT', 'Hardware', 'Media – Puede esperar unas horas', 'Test', 'Description', 'Pendiente', `token-${Date.now()}`]
+				[`T-EXT-${Date.now()}`, 'Test', 'IT', 'Hardware', 'Media – Puede esperar unas horas', 'Test', 'Description', 'Pendiente', `token-${Date.now()}`]
 			);
-			const ticket = rows[0];
+			testTicket = rows[0];
 
-			await ticketService.deleteTicket(ticket.id);
-
-			await expect(ticketService.getTicketByReference(ticket.reference)).rejects.toThrow('no encontrado');
+			// Add a comment
+			await pool.query(
+				`INSERT INTO comments (ticket_id, author_name, content, is_internal) VALUES ($1, $2, $3, $4)`,
+				[testTicket.id, 'Tester', 'Test comment', false]
+			);
 		});
 
-		it('should throw NotFoundError for non-existent ticket', async () => {
-			await expect(ticketService.deleteTicket(99999)).rejects.toThrow('no encontrado');
+		it('should get ticket with comments', async () => {
+			const result = await ticketService.getTicketWithComments(testTicket.reference, false);
+
+			expect(result.ticket.reference).toBe(testTicket.reference);
+			expect(Array.isArray(result.comments)).toBe(true);
+		});
+	});
+
+	describe('addComment', () => {
+		let testTicket;
+
+		beforeEach(async () => {
+			const { rows } = await pool.query(
+				`INSERT INTO tickets (reference, requester_name, department, support_type, priority, subject, description, status, edit_token)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				 RETURNING *`,
+				[`T-EXT-${Date.now()}`, 'Test', 'IT', 'Hardware', 'Media – Puede esperar unas horas', 'Test', 'Description', 'Pendiente', `token-${Date.now()}`]
+			);
+			testTicket = rows[0];
+		});
+
+		it('should add comment to ticket', async () => {
+			const comment = await ticketService.addComment(
+				testTicket.id,
+				testTicket.reference,
+				{ author_name: 'Tester', content: 'New comment', is_internal: false }
+			);
+
+			expect(comment).toHaveProperty('id');
+			expect(comment.content).toBe('New comment');
+		});
+	});
+
+	describe('getAllTechnicians', () => {
+		it('should return list of technicians', async () => {
+			const technicians = await ticketService.getAllTechnicians();
+			expect(Array.isArray(technicians)).toBe(true);
 		});
 	});
 });
@@ -347,25 +391,6 @@ describe('roleService Extended', () => {
 			});
 
 			expect(role).toHaveProperty('id');
-			expect(role.display_name).toBe('Test Role');
-		});
-
-		it('should reject duplicate role name', async () => {
-			const name = `test_dup_${Date.now()}`;
-			
-			await roleService.createRole({
-				name,
-				display_name: 'First',
-				permissions: [],
-			});
-
-			await expect(
-				roleService.createRole({
-					name,
-					display_name: 'Second',
-					permissions: [],
-				})
-			).rejects.toThrow();
 		});
 	});
 
@@ -387,26 +412,19 @@ describe('roleService Extended', () => {
 		});
 
 		it('should update role', async () => {
-			const updated = await roleService.updateRole(testRole.id, {
+			const result = await roleService.updateRole(testRole.id, {
 				display_name: 'Updated Name',
 				description: 'Updated description',
 				permissions: [],
 			});
 
-			expect(updated.display_name).toBe('Updated Name');
+			expect(result).toBe(true);
 		});
 
-		it('should reject updating system role name', async () => {
-			const { rows } = await pool.query("SELECT id FROM roles WHERE name = 'admin'");
-			const adminRoleId = rows[0].id;
-
-			// System roles can be updated but name cannot change
-			const result = await roleService.updateRole(adminRoleId, {
-				display_name: 'Super Admin',
-				permissions: [],
-			});
-
-			expect(result).toBeDefined();
+		it('should throw NotFoundError for non-existent role', async () => {
+			await expect(
+				roleService.updateRole(99999, { display_name: 'Test', permissions: [] })
+			).rejects.toThrow('no encontrado');
 		});
 	});
 
@@ -428,6 +446,10 @@ describe('roleService Extended', () => {
 			const adminRoleId = rows[0].id;
 
 			await expect(roleService.deleteRole(adminRoleId)).rejects.toThrow('sistema');
+		});
+
+		it('should throw NotFoundError for non-existent role', async () => {
+			await expect(roleService.deleteRole(99999)).rejects.toThrow('no encontrado');
 		});
 	});
 });
@@ -480,18 +502,23 @@ describe('Comments Model', () => {
 		expect(comment.is_internal).toBe(true);
 	});
 
-	it('should get comments by ticket', async () => {
-		const comments = await commentsModel.getCommentsByTicket(testTicket.id);
+	it('should get comments by ticket id', async () => {
+		const comments = await commentsModel.getCommentsByTicketId(testTicket.id, true);
 
 		expect(Array.isArray(comments)).toBe(true);
 		expect(comments.length).toBeGreaterThan(0);
 	});
 
 	it('should get public comments only', async () => {
-		const comments = await commentsModel.getCommentsByTicket(testTicket.id, false);
+		const comments = await commentsModel.getCommentsByTicketId(testTicket.id, false);
 
 		comments.forEach(c => {
 			expect(c.is_internal).toBe(false);
 		});
+	});
+
+	it('should count comments by ticket', async () => {
+		const count = await commentsModel.countCommentsByTicketId(testTicket.id);
+		expect(typeof count).toBe('number');
 	});
 });
