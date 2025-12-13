@@ -1,5 +1,5 @@
 /**
- * Tests unitarios para servicios
+ * Tests de integración para servicios
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { ensureDatabaseInitialized, getPool } from '../../src/db.js';
