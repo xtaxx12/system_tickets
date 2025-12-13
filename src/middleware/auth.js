@@ -1,7 +1,7 @@
 /**
  * Middlewares de autenticación y autorización
  */
-const { userHasPermission, userHasAnyPermission, getUserPermissions } = require('../models/permissions');
+const roleService = require('../services/roleService');
 
 /**
  * Verificar que el usuario esté autenticado
@@ -61,7 +61,7 @@ function requirePermission(permissionName) {
 		}
 
 		try {
-			const hasPermission = await userHasPermission(req.session.user.id, permissionName);
+			const hasPermission = await roleService.userHasPermission(req.session.user.id, permissionName);
 			if (hasPermission) {
 				return next();
 			}
@@ -88,7 +88,7 @@ function requireAnyPermission(...permissionNames) {
 		}
 
 		try {
-			const hasPermission = await userHasAnyPermission(req.session.user.id, permissionNames);
+			const hasPermission = await roleService.userHasAnyPermission(req.session.user.id, permissionNames);
 			if (hasPermission) {
 				return next();
 			}
@@ -111,7 +111,7 @@ function requireAnyPermission(...permissionNames) {
 async function addUserPermissions(req, res, next) {
 	if (req.session?.user) {
 		try {
-			req.userPermissions = await getUserPermissions(req.session.user.id);
+			req.userPermissions = await roleService.getUserPermissions(req.session.user.id);
 		} catch (err) {
 			console.error('Error obteniendo permisos:', err);
 			req.userPermissions = [];
